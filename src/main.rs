@@ -56,6 +56,7 @@ async fn main() -> anyhow::Result<()> {
             .wrap(cors)
             .wrap(Logger::default())
             .service(handlers::health_check)
+            .service(handlers::ready)
             .service(handlers::test_not_found)
             .service(handlers::test_validation)
             .service(handlers::test_internal)
