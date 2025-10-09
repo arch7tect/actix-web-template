@@ -69,3 +69,10 @@ When adding Actix Web functionality, follow the typical layered architecture:
 - **Prefer tracing over comments** - use `tracing::debug!()`, `tracing::info!()`, etc.
 - **Comments explain "why", not "what"** - code should be self-documenting
 - **Naming**: functions/variables `snake_case`, types `PascalCase`, constants `SCREAMING_SNAKE_CASE`
+
+## Git Workflow
+
+- **Never commit directly to master** - always use stage branches
+- **Branching strategy**: `stage-N-short-name` for each implementation stage
+- **Workflow**: Create branch → Complete work → Test (cargo build/run) → Commit → Tag → Merge to master
+- **Tags**: `stage-N-complete` marks the completion of each stage
