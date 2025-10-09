@@ -114,8 +114,9 @@ ENABLE_SWAGGER=true
 - [ ] Add configuration validation
 - [ ] Create src/main.rs with basic server setup
 - [ ] Set up tracing-subscriber for structured logging
+- [ ] Add simple /health endpoint for testing
 - [ ] Implement graceful shutdown
-- [ ] Test server starts on configured port
+- [ ] Test server starts and /health returns JSON
 
 ### Dependencies to Add
 ```toml
