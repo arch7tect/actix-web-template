@@ -1,4 +1,5 @@
 /target
+/migration/target
 /.idea/
 .DS_Store
 *.swp
