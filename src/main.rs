@@ -67,6 +67,13 @@ async fn main() -> anyhow::Result<()> {
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )
             .service(handlers::index)
+            .service(handlers::get_memos_list)
+            .service(handlers::get_new_memo_form)
+            .service(handlers::create_memo_web)
+            .service(handlers::get_edit_memo_form)
+            .service(handlers::update_memo_web)
+            .service(handlers::delete_memo_web)
+            .service(handlers::toggle_memo_complete_web)
             .service(handlers::health_check)
             .service(handlers::ready)
             .service(handlers::list_memos)

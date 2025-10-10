@@ -1,14 +1,18 @@
 <form
-    {% if memo %}
-        hx-put="/memos/{{ memo.id }}"
-    {% else %}
-        hx-post="/memos"
-    {% endif %}
-    hx-target="#memo-list"
-    hx-swap="innerHTML"
+    {% match memo %}
+    {% when Some with (m) %}
+        hx-put="/web/memos/{{ m.id }}"
+        hx-target="#memo-{{ m.id }}"
+        hx-on::after-swap="closeModal()"
+    {% when None %}
+        hx-post="/web/memos"
+        hx-target="#memo-list"
+        hx-on::after-swap="closeModal()"
+    {% endmatch %}
+    hx-swap="outerHTML"
     class="memo-form">
 
-    <h3>{% if memo %}Edit Memo{% else %}New Memo{% endif %}</h3>
+    <h3>{% match memo %}{% when Some with (_) %}Edit Memo{% when None %}New Memo{% endmatch %}</h3>
 
     <div class="form-group">
         <label for="title">Title *</label>
@@ -39,7 +43,7 @@
             id="date_to"
             name="date_to"
             required
-            {% match memo %}{% when Some with (m) %}value="{{ m.date_to }}"{% when None %}{% endmatch %}>
+            {% match memo %}{% when Some with (m) %}value="{{ m.date_to_local_format() }}"{% when None %}{% endmatch %}>
     </div>
 
     {% match memo %}
@@ -58,29 +62,10 @@
 
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">
-            {% if memo %}Update{% else %}Create{% endif %}
+            {% match memo %}{% when Some with (_) %}Update{% when None %}Create{% endmatch %}
         </button>
         <button type="button" class="btn btn-secondary" onclick="closeModal()">
             Cancel
         </button>
     </div>
 </form>
-
-<script>
-function showModal() {
-    document.getElementById('memo-form-modal').style.display = 'block';
-}
-
-function closeModal() {
-    document.getElementById('memo-form-modal').style.display = 'none';
-}
-
-document.querySelector('.close').onclick = closeModal;
-
-window.onclick = function(event) {
-    const modal = document.getElementById('memo-form-modal');
-    if (event.target === modal) {
-        closeModal();
-    }
-}
-</script>

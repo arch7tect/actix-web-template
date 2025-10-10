@@ -4,21 +4,21 @@
         <div class="memo-actions">
             <button
                 class="btn btn-sm btn-toggle"
-                hx-patch="/memos/{{ memo.id }}/toggle"
+                hx-patch="/web/memos/{{ memo.id }}/toggle"
                 hx-target="#memo-{{ memo.id }}"
                 hx-swap="outerHTML">
                 {% if memo.completed %}Undo{% else %}Complete{% endif %}
             </button>
             <button
                 class="btn btn-sm btn-edit"
-                hx-get="/memos/{{ memo.id }}/edit"
+                hx-get="/web/memos/{{ memo.id }}/edit"
                 hx-target="#memo-form-container"
                 onclick="showModal()">
                 Edit
             </button>
             <button
                 class="btn btn-sm btn-danger"
-                hx-delete="/memos/{{ memo.id }}"
+                hx-delete="/web/memos/{{ memo.id }}"
                 hx-confirm="Are you sure you want to delete this memo?"
                 hx-target="#memo-{{ memo.id }}"
                 hx-swap="outerHTML swap:1s">

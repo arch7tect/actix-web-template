@@ -62,6 +62,12 @@ pub struct MemoResponseDto {
     pub updated_at: DateTime<Utc>,
 }
 
+impl MemoResponseDto {
+    pub fn date_to_local_format(&self) -> String {
+        self.date_to.format("%Y-%m-%dT%H:%M").to_string()
+    }
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct PaginationParams {
     #[validate(range(min = 1, max = 100, message = "Limit must be between 1 and 100"))]
