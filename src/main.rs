@@ -1,6 +1,5 @@
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{web, App, HttpServer};
 use actix_web_template::{config::Settings, handlers, state::AppState, utils::init_tracing};
-use sea_orm::Database;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -16,16 +15,7 @@ async fn main() -> anyhow::Result<()> {
 
     settings.validate()?;
 
-    tracing::info!(
-        url = %settings.database.url.split('@').last().unwrap_or("***"),
-        max_connections = settings.database.max_connections,
-        "Connecting to database"
-    );
-
-    let db = Database::connect(&settings.database.url).await?;
-    tracing::info!("Database connection established");
-
-    let state = AppState::new(settings.clone(), db);
+    let state = AppState::new(settings.clone());
 
     let bind_address = format!("{}:{}", settings.server.host, settings.server.port);
     tracing::info!(address = %bind_address, "Starting HTTP server");
@@ -33,7 +23,6 @@ async fn main() -> anyhow::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
-            .wrap(Logger::default())
             .service(handlers::health_check)
     })
     .bind(&bind_address)?
