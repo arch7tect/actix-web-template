@@ -4,6 +4,7 @@ pub mod entities;
 pub mod error;
 pub mod handlers;
 pub mod repository;
+pub mod services;
 pub mod state;
 pub mod utils;
 

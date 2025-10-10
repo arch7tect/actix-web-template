@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, error::ResponseError, http::StatusCode};
 use sea_orm::DbErr;
 use serde::Serialize;
 use thiserror::Error;
+use validator::ValidationErrors;
 
 #[derive(Debug, Error)]
 pub enum AppError {
@@ -23,6 +24,18 @@ pub struct ErrorResponse {
     pub error: String,
     pub message: String,
     pub status: u16,
+}
+
+impl From<ValidationErrors> for AppError {
+    fn from(err: ValidationErrors) -> Self {
+        AppError::Validation(format!("Validation failed: {}", err))
+    }
+}
+
+impl From<String> for AppError {
+    fn from(err: String) -> Self {
+        AppError::Validation(err)
+    }
 }
 
 impl ResponseError for AppError {
