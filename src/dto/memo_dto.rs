@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct CreateMemoDto {
     #[validate(length(
         min = 1,
@@ -18,7 +18,7 @@ pub struct CreateMemoDto {
     pub date_to: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct UpdateMemoDto {
     #[validate(length(
         min = 1,
@@ -34,7 +34,7 @@ pub struct UpdateMemoDto {
     pub completed: bool,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct PatchMemoDto {
     #[validate(length(
         min = 1,
@@ -50,7 +50,7 @@ pub struct PatchMemoDto {
     pub completed: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MemoResponseDto {
     pub id: Uuid,
     pub title: String,
@@ -101,7 +101,7 @@ impl Default for PaginationParams {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaginatedResponse<T> {
     pub data: Vec<T>,
     pub total: u64,
