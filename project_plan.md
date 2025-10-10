@@ -1201,6 +1201,8 @@ Each stage is complete when:
 - ✅ All tests pass
 - ✅ Code is formatted and linted
 - ✅ Documentation is updated
+- ✅ **No empty files or directories exist**
+- ✅ **No unused dependencies in Cargo.toml**
 - ✅ Changes are committed
 
 ### Project Completion
