@@ -1,0 +1,40 @@
+<div class="memo-item {% if memo.completed %}completed{% endif %}" id="memo-{{ memo.id }}">
+    <div class="memo-header">
+        <h3 class="memo-title">{{ memo.title }}</h3>
+        <div class="memo-actions">
+            <button
+                class="btn btn-sm btn-toggle"
+                hx-patch="/memos/{{ memo.id }}/toggle"
+                hx-target="#memo-{{ memo.id }}"
+                hx-swap="outerHTML">
+                {% if memo.completed %}Undo{% else %}Complete{% endif %}
+            </button>
+            <button
+                class="btn btn-sm btn-edit"
+                hx-get="/memos/{{ memo.id }}/edit"
+                hx-target="#memo-form-container"
+                onclick="showModal()">
+                Edit
+            </button>
+            <button
+                class="btn btn-sm btn-danger"
+                hx-delete="/memos/{{ memo.id }}"
+                hx-confirm="Are you sure you want to delete this memo?"
+                hx-target="#memo-{{ memo.id }}"
+                hx-swap="outerHTML swap:1s">
+                Delete
+            </button>
+        </div>
+    </div>
+    {% match memo.description %}
+    {% when Some with (desc) %}
+    <p class="memo-description">{{ desc }}</p>
+    {% when None %}
+    {% endmatch %}
+    <div class="memo-footer">
+        <span class="memo-date">Due: {{ memo.date_to }}</span>
+        <span class="memo-status {% if memo.completed %}status-completed{% else %}status-pending{% endif %}">
+            {% if memo.completed %}Completed{% else %}Pending{% endif %}
+        </span>
+    </div>
+</div>

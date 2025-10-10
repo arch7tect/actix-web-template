@@ -62,9 +62,11 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::PayloadConfig::default().limit(state.config.api.max_request_size))
             .wrap(cors)
             .wrap(Logger::default())
+            .service(actix_files::Files::new("/static", "./static").show_files_listing())
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )
+            .service(handlers::index)
             .service(handlers::health_check)
             .service(handlers::ready)
             .service(handlers::list_memos)

@@ -1,0 +1,86 @@
+<form
+    {% if memo %}
+        hx-put="/memos/{{ memo.id }}"
+    {% else %}
+        hx-post="/memos"
+    {% endif %}
+    hx-target="#memo-list"
+    hx-swap="innerHTML"
+    class="memo-form">
+
+    <h3>{% if memo %}Edit Memo{% else %}New Memo{% endif %}</h3>
+
+    <div class="form-group">
+        <label for="title">Title *</label>
+        <input
+            type="text"
+            id="title"
+            name="title"
+            maxlength="200"
+            required
+            {% match memo %}{% when Some with (m) %}value="{{ m.title }}"{% when None %}{% endmatch %}
+            placeholder="Enter memo title">
+    </div>
+
+    <div class="form-group">
+        <label for="description">Description</label>
+        <textarea
+            id="description"
+            name="description"
+            maxlength="1000"
+            rows="4"
+            placeholder="Enter memo description (optional)">{% match memo %}{% when Some with (m) %}{% match m.description %}{% when Some with (desc) %}{{ desc }}{% when None %}{% endmatch %}{% when None %}{% endmatch %}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="date_to">Due Date *</label>
+        <input
+            type="datetime-local"
+            id="date_to"
+            name="date_to"
+            required
+            {% match memo %}{% when Some with (m) %}value="{{ m.date_to }}"{% when None %}{% endmatch %}>
+    </div>
+
+    {% match memo %}
+    {% when Some with (m) %}
+    <div class="form-group">
+        <label>
+            <input
+                type="checkbox"
+                name="completed"
+                {% if m.completed %}checked{% endif %}>
+            Mark as completed
+        </label>
+    </div>
+    {% when None %}
+    {% endmatch %}
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+            {% if memo %}Update{% else %}Create{% endif %}
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">
+            Cancel
+        </button>
+    </div>
+</form>
+
+<script>
+function showModal() {
+    document.getElementById('memo-form-modal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('memo-form-modal').style.display = 'none';
+}
+
+document.querySelector('.close').onclick = closeModal;
+
+window.onclick = function(event) {
+    const modal = document.getElementById('memo-form-modal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
+</script>

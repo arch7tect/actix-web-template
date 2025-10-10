@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Memos - Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h2>My Memos</h2>
+        <button id="new-memo-btn" class="btn btn-primary">New Memo</button>
+    </div>
+
+    <div class="filters">
+        <select
+            id="filter-completed"
+            hx-get="/memos"
+            hx-target="#memo-list"
+            hx-trigger="change"
+            name="completed">
+            <option value="">All Memos</option>
+            <option value="false">Incomplete</option>
+            <option value="true">Completed</option>
+        </select>
+
+        <select
+            id="sort-by"
+            hx-get="/memos"
+            hx-target="#memo-list"
+            hx-trigger="change"
+            name="sort_by">
+            <option value="created_at">Created At</option>
+            <option value="date_to">Due Date</option>
+            <option value="title">Title</option>
+        </select>
+
+        <select
+            id="order"
+            hx-get="/memos"
+            hx-target="#memo-list"
+            hx-trigger="change"
+            name="order">
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+        </select>
+    </div>
+
+    <div id="memo-list">
+        {% include "components/memo_list.html" %}
+    </div>
+</div>
+
+<div id="memo-form-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="memo-form-container"></div>
+    </div>
+</div>
+{% endblock %}

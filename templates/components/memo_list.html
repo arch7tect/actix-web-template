@@ -1,0 +1,9 @@
+{% if memos.is_empty() %}
+    <div class="empty-state">
+        <p>No memos found. Create your first memo!</p>
+    </div>
+{% else %}
+    {% for memo in memos %}
+        {% include "components/memo_item.html" %}
+    {% endfor %}
+{% endif %}
