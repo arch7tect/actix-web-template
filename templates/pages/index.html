@@ -2,6 +2,140 @@
 
 {% block title %}Memos - Home{% endblock %}
 
+{% block head_scripts %}
+<script>
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+function loadNewMemoForm() {
+    fetch('/web/memos/new')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('memo-form-container').innerHTML = html;
+            showModal('memo-form-modal');
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('memo-form-modal');
+    if (modal) {
+        const closeBtn = modal.querySelector('.close');
+        if (closeBtn) {
+            closeBtn.onclick = function() {
+                modal.style.display = 'none';
+            };
+        }
+
+        window.onclick = function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+    }
+
+    function updateMemoList() {
+        const completed = document.getElementById('filter-completed').value;
+        const sortBy = document.getElementById('sort-by').value;
+        const order = document.getElementById('order').value;
+
+        const params = new URLSearchParams();
+        if (completed) params.append('completed', completed);
+        if (sortBy) params.append('sort_by', sortBy);
+        if (order) params.append('order', order);
+
+        const url = '/web/memos?' + params.toString();
+
+        fetch(url)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('memo-list').innerHTML = html;
+            });
+    }
+
+    document.getElementById('filter-completed').addEventListener('change', updateMemoList);
+    document.getElementById('sort-by').addEventListener('change', updateMemoList);
+    document.getElementById('order').addEventListener('change', updateMemoList);
+
+    // Handle memo actions (edit, toggle, delete)
+    document.addEventListener('click', function(e) {
+        const target = e.target;
+        if (!target.dataset.action) return;
+
+        const action = target.dataset.action;
+        const memoId = target.dataset.memoId;
+
+        if (action === 'edit') {
+            fetch(`/web/memos/${memoId}/edit`)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('memo-form-container').innerHTML = html;
+                    showModal('memo-form-modal');
+                });
+        } else if (action === 'toggle') {
+            fetch(`/web/memos/${memoId}/toggle`, { method: 'PATCH' })
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById(`memo-${memoId}`).outerHTML = html;
+                });
+        } else if (action === 'delete') {
+            if (confirm('Are you sure you want to delete this memo?')) {
+                fetch(`/web/memos/${memoId}`, { method: 'DELETE' })
+                    .then(response => {
+                        if (response.ok) {
+                            document.getElementById(`memo-${memoId}`).remove();
+                        }
+                    });
+            }
+        }
+    });
+
+    // Handle form submission
+    document.addEventListener('submit', function(e) {
+        if (e.target.id === 'memo-form') {
+            e.preventDefault();
+            const form = e.target;
+            const memoId = form.dataset.memoId;
+            const formData = new FormData(form);
+
+            const url = memoId ? `/web/memos/${memoId}` : '/web/memos';
+            const method = memoId ? 'PUT' : 'POST';
+
+            // Convert FormData to URLSearchParams for proper encoding
+            const params = new URLSearchParams();
+            for (const [key, value] of formData.entries()) {
+                params.append(key, value);
+            }
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params.toString()
+            })
+            .then(response => response.text())
+            .then(html => {
+                if (memoId) {
+                    document.getElementById(`memo-${memoId}`).outerHTML = html;
+                } else {
+                    document.getElementById('memo-list').innerHTML = html;
+                }
+                closeModal('memo-form-modal');
+            });
+        }
+    });
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="page-header">
@@ -9,9 +143,7 @@
         <button
             id="new-memo-btn"
             class="btn btn-primary"
-            hx-get="/web/memos/new"
-            hx-target="#memo-form-container"
-            onclick="showModal()">
+            onclick="loadNewMemoForm()">
             New Memo
         </button>
     </div>
@@ -20,36 +152,24 @@
         <form id="filter-form">
             <select
                 id="filter-completed"
-                hx-get="/web/memos"
-                hx-target="#memo-list"
-                hx-trigger="change"
-                hx-include="#filter-form"
                 name="completed">
-                <option value="">All Memos</option>
+                <option value="" selected>All Memos</option>
                 <option value="false">Incomplete</option>
                 <option value="true">Completed</option>
             </select>
 
             <select
                 id="sort-by"
-                hx-get="/web/memos"
-                hx-target="#memo-list"
-                hx-trigger="change"
-                hx-include="#filter-form"
                 name="sort_by">
-                <option value="created_at">Created At</option>
+                <option value="created_at" selected>Created At</option>
                 <option value="date_to">Due Date</option>
                 <option value="title">Title</option>
             </select>
 
             <select
                 id="order"
-                hx-get="/web/memos"
-                hx-target="#memo-list"
-                hx-trigger="change"
-                hx-include="#filter-form"
                 name="order">
-                <option value="desc">Descending</option>
+                <option value="desc" selected>Descending</option>
                 <option value="asc">Ascending</option>
             </select>
         </form>

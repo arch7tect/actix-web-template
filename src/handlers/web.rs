@@ -1,4 +1,4 @@
-use actix_web::{delete, get, patch, post, put, web, HttpResponse};
+use actix_web::{HttpResponse, delete, get, patch, post, put, web};
 use askama::Template;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -62,17 +62,13 @@ pub async fn index(state: web::Data<AppState>) -> Result<HttpResponse, AppError>
 
     let result = service.get_all_memos(params).await?;
 
-    let template = IndexTemplate {
-        memos: result.data,
-    };
+    let template = IndexTemplate { memos: result.data };
 
     match template.render() {
         Ok(html) => Ok(HttpResponse::Ok().content_type("text/html").body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render index template");
-            Err(AppError::Internal(
-                "Failed to render template".to_string(),
-            ))
+            Err(AppError::Internal("Failed to render template".to_string()))
         }
     }
 }
@@ -82,23 +78,19 @@ pub async fn get_memos_list(
     state: web::Data<AppState>,
     query: web::Query<PaginationParams>,
 ) -> Result<HttpResponse, AppError> {
-    tracing::debug!("Fetching memos list for HTMX");
+    tracing::debug!("Fetching memos list for web");
 
     let service = MemoService::new(state.db.clone());
 
     let result = service.get_all_memos(query.into_inner()).await?;
 
-    let template = MemoListTemplate {
-        memos: result.data,
-    };
+    let template = MemoListTemplate { memos: result.data };
 
     match template.render() {
         Ok(html) => Ok(HttpResponse::Ok().content_type("text/html").body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo list template");
-            Err(AppError::Internal(
-                "Failed to render template".to_string(),
-            ))
+            Err(AppError::Internal("Failed to render template".to_string()))
         }
     }
 }
@@ -113,9 +105,7 @@ pub async fn get_new_memo_form() -> Result<HttpResponse, AppError> {
         Ok(html) => Ok(HttpResponse::Ok().content_type("text/html").body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo form template");
-            Err(AppError::Internal(
-                "Failed to render template".to_string(),
-            ))
+            Err(AppError::Internal("Failed to render template".to_string()))
         }
     }
 }
@@ -130,9 +120,12 @@ pub async fn create_memo_web(
     form.validate()
         .map_err(|e| AppError::Validation(format!("Validation failed: {}", e)))?;
 
-    let date_to: DateTime<Utc> = chrono::NaiveDateTime::parse_from_str(&form.date_to, "%Y-%m-%dT%H:%M")
-        .map_err(|_| AppError::Validation("Invalid date format. Expected YYYY-MM-DDTHH:MM".to_string()))?
-        .and_utc();
+    let date_to: DateTime<Utc> =
+        chrono::NaiveDateTime::parse_from_str(&form.date_to, "%Y-%m-%dT%H:%M")
+            .map_err(|_| {
+                AppError::Validation("Invalid date format. Expected YYYY-MM-DDTHH:MM".to_string())
+            })?
+            .and_utc();
 
     let service = MemoService::new(state.db.clone());
 
@@ -147,17 +140,13 @@ pub async fn create_memo_web(
     let params = PaginationParams::default();
     let result = service.get_all_memos(params).await?;
 
-    let template = MemoListTemplate {
-        memos: result.data,
-    };
+    let template = MemoListTemplate { memos: result.data };
 
     match template.render() {
         Ok(html) => Ok(HttpResponse::Ok().content_type("text/html").body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo list template");
-            Err(AppError::Internal(
-                "Failed to render template".to_string(),
-            ))
+            Err(AppError::Internal("Failed to render template".to_string()))
         }
     }
 }
@@ -179,9 +168,7 @@ pub async fn get_edit_memo_form(
         Ok(html) => Ok(HttpResponse::Ok().content_type("text/html").body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo form template");
-            Err(AppError::Internal(
-                "Failed to render template".to_string(),
-            ))
+            Err(AppError::Internal("Failed to render template".to_string()))
         }
     }
 }
@@ -198,9 +185,12 @@ pub async fn update_memo_web(
     form.validate()
         .map_err(|e| AppError::Validation(format!("Validation failed: {}", e)))?;
 
-    let date_to: DateTime<Utc> = chrono::NaiveDateTime::parse_from_str(&form.date_to, "%Y-%m-%dT%H:%M")
-        .map_err(|_| AppError::Validation("Invalid date format. Expected YYYY-MM-DDTHH:MM".to_string()))?
-        .and_utc();
+    let date_to: DateTime<Utc> =
+        chrono::NaiveDateTime::parse_from_str(&form.date_to, "%Y-%m-%dT%H:%M")
+            .map_err(|_| {
+                AppError::Validation("Invalid date format. Expected YYYY-MM-DDTHH:MM".to_string())
+            })?
+            .and_utc();
 
     let completed = form.completed.is_some();
 
@@ -221,9 +211,7 @@ pub async fn update_memo_web(
         Ok(html) => Ok(HttpResponse::Ok().content_type("text/html").body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo item template");
-            Err(AppError::Internal(
-                "Failed to render template".to_string(),
-            ))
+            Err(AppError::Internal("Failed to render template".to_string()))
         }
     }
 }
@@ -259,9 +247,7 @@ pub async fn toggle_memo_complete_web(
         Ok(html) => Ok(HttpResponse::Ok().content_type("text/html").body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo item template");
-            Err(AppError::Internal(
-                "Failed to render template".to_string(),
-            ))
+            Err(AppError::Internal("Failed to render template".to_string()))
         }
     }
 }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Memos App{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <script src="/static/js/htmx.min.js"></script>
+    {% block head_scripts %}{% endblock %}
 </head>
 <body>
     {% include "partials/header.html" %}
@@ -15,37 +15,5 @@
     </main>
 
     {% include "partials/footer.html" %}
-
-    <script>
-    function showModal() {
-        document.getElementById('memo-form-modal').style.display = 'block';
-    }
-
-    function closeModal() {
-        document.getElementById('memo-form-modal').style.display = 'none';
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const closeBtn = document.querySelector('.close');
-        if (closeBtn) {
-            closeBtn.onclick = closeModal;
-        }
-
-        window.onclick = function(event) {
-            const modal = document.getElementById('memo-form-modal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        }
-
-        document.body.addEventListener('htmx:configRequest', function(evt) {
-            Object.keys(evt.detail.parameters).forEach(key => {
-                if (evt.detail.parameters[key] === '') {
-                    delete evt.detail.parameters[key];
-                }
-            });
-        });
-    });
-    </script>
 </body>
 </html>

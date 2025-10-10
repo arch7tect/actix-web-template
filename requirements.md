@@ -39,47 +39,46 @@ A simple memos web application with REST API server built using Actix Web framew
 
 ### Web Interface
 - **Server-side rendered** HTML using Askama templates (compile-time type-safe)
-- **HTMX** for dynamic interactions without full page reloads
+- **vanilla JavaScript** for dynamic interactions without full page reloads
 - **Progressive enhancement** - works without JavaScript, better with it
 
 #### Pages
 - `GET /` - Home page with memo list
-- `GET /memos/new` - Create memo form (can be loaded in modal via HTMX)
-- `GET /memos/{id}/edit` - Edit memo form (can be loaded in modal via HTMX)
+- `GET /memos/new` - Create memo form (can be loaded in modal via vanilla JavaScript)
+- `GET /memos/{id}/edit` - Edit memo form (can be loaded in modal via vanilla JavaScript)
 
 #### Features
 - Display paginated list of memos
 - Create new memo (inline form or modal)
 - Edit memos (inline or modal)
 - Delete memos with confirmation
-- Toggle completion status (instant update via HTMX)
-- Filter by completion status (instant update via HTMX)
-- Sort by date, title, etc. (instant update via HTMX)
-- Search memos (instant search via HTMX)
+- Toggle completion status (instant update via vanilla JavaScript)
+- Filter by completion status (instant update via vanilla JavaScript)
+- Sort by date, title, etc. (instant update via vanilla JavaScript)
+- Search memos (instant search via vanilla JavaScript)
 
 #### Template Structure (Askama)
 ```
 templates/
-├── base.html              # Base layout with HTMX setup
+├── base.html              # Base layout with vanilla JavaScript setup
 ├── pages/
 │   ├── index.html         # Home page with memo list
 │   └── error.html         # Error page
 ├── components/
 │   ├── memo_item.html     # Single memo component
 │   ├── memo_form.html     # Memo form (create/edit)
-│   └── memo_list.html     # Memo list (for HTMX swaps)
+│   └── memo_list.html     # Memo list (for vanilla JavaScript swaps)
 └── partials/
     ├── header.html
     └── footer.html
 ```
 
-#### HTMX Integration
-- **hx-get**: Load memo list, filters, search results
-- **hx-post**: Create/update/delete memos
-- **hx-swap**: Replace parts of page without reload
-- **hx-target**: Specify where to swap content
-- **hx-trigger**: Define when to trigger requests
-- Out-of-band swaps for notifications/toasts
+#### vanilla JavaScript Integration
+- Event listeners for user interactions
+- Fetch API for server communication
+- DOM manipulation for dynamic updates
+- Loading states and error handling
+- Progressive enhancement pattern
 
 ### API Documentation
 - OpenAPI 3.0 specification generated via `utoipa`
@@ -270,7 +269,6 @@ While not in v1, design should support:
 - **Code Organization**: Feature-based module structure
 - **Type Safety**: Leverage Rust's type system for correctness
 - **Compile-time Template Safety**: Askama templates type-checked at compile time
-- **Progressive Enhancement**: HTMX works without JavaScript, enhances with it
 - **API Documentation**: Auto-generated OpenAPI specs with utoipa macros
 - **12-Factor App**: Follow 12-factor app principles
 
@@ -314,15 +312,15 @@ src/
 └── web/                     # Web page handlers (HTML via Askama)
     ├── mod.rs
     ├── pages.rs             # Full page handlers
-    └── components.rs        # HTMX component handlers
+    └── components.rs        # vanilla JavaScript component handlers
 
 templates/                   # Askama templates (compile-time checked)
-├── base.html                # Base layout with HTMX
+├── base.html                # Base layout with vanilla JavaScript
 ├── pages/
 │   ├── index.html           # Home page
 │   └── error.html           # Error page
 ├── components/
-│   ├── memo_item.html       # Single memo (for HTMX swaps)
+│   ├── memo_item.html       # Single memo (for vanilla JavaScript swaps)
 │   ├── memo_form.html       # Create/edit form
 │   └── memo_list.html       # List of memos (for filtering/sorting)
 └── partials/
@@ -333,7 +331,7 @@ static/                      # Static assets
 ├── css/
 │   └── style.css            # Custom styles
 ├── js/
-│   └── htmx.min.js          # HTMX library (or CDN)
+│   └── app.js          # vanilla JavaScript library (or CDN)
 └── images/
 
 migration/                   # SeaORM migrations
@@ -403,7 +401,7 @@ docker-compose up --build
 cargo test
 
 # Run tests with output
-cargo test -- --nocaptureed
+cargo test -- --nocaptured
 
 # Format and lint
 cargo fmt

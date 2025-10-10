@@ -617,7 +617,7 @@ struct ApiDoc;
 ### Tasks
 - [ ] Add Askama dependencies
 - [ ] Create templates/ directory structure
-- [ ] Create base.html layout with HTMX
+- [ ] Create base.html layout with vanilla JavaScript
 - [ ] Create templates/pages/index.html
 - [ ] Create templates/pages/error.html
 - [ ] Create templates/components/memo_item.html
@@ -659,7 +659,7 @@ templates/
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Memos App{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <script src="/static/js/htmx.min.js"></script>
+    <script src="/static/js/app.js"></script>
 </head>
 <body>
     {% include "partials/header.html" %}
@@ -677,7 +677,7 @@ templates/
 - ✅ Templates compile at build time
 - ✅ Base layout works
 - ✅ Template inheritance works
-- ✅ HTMX loaded
+- ✅ vanilla JavaScript loaded
 
 **Estimated Time:** 3-4 hours
 
@@ -691,7 +691,7 @@ templates/
 - [ ] Create src/web/pages.rs
 - [ ] Create src/web/components.rs
 - [ ] Implement GET / (home page)
-- [ ] Implement GET /memos (memo list component for HTMX)
+- [ ] Implement GET /memos (memo list component for vanilla JavaScript)
 - [ ] Implement GET /memos/new (create form)
 - [ ] Implement POST /memos (handle creation)
 - [ ] Implement GET /memos/{id} (single memo)
@@ -744,61 +744,21 @@ pub struct MemoFormTemplate {
 
 ---
 
-## Stage 12: HTMX Integration
+## Stage 12: vanilla JavaScript Integration
 
-**Goal:** Add dynamic interactions with HTMX
+**Goal:** Add dynamic interactions with vanilla JavaScript
 
 ### Tasks
-- [ ] Download and add htmx.min.js to static/js/
-- [ ] Add HTMX attributes to memo list for filtering
-- [ ] Add HTMX attributes for sorting
+- [ ] Download and add app.js to static/js/
+- [ ] Add vanilla JavaScript attributes to memo list for filtering
+- [ ] Add vanilla JavaScript attributes for sorting
 - [ ] Implement instant toggle complete
 - [ ] Implement delete with confirmation
-- [ ] Add HTMX for create memo (modal or inline)
-- [ ] Add HTMX for edit memo (modal or inline)
-- [ ] Implement search with HTMX
+- [ ] Add vanilla JavaScript for create memo (modal or inline)
+- [ ] Add vanilla JavaScript for edit memo (modal or inline)
+- [ ] Implement search with vanilla JavaScript
 - [ ] Add loading indicators
-- [ ] Test all HTMX interactions
-
-### HTMX Examples
-```html
-<!-- Toggle complete -->
-<button
-    hx-post="/memos/{{ memo.id }}/toggle"
-    hx-target="#memo-{{ memo.id }}"
-    hx-swap="outerHTML">
-    Toggle
-</button>
-
-<!-- Delete with confirmation -->
-<button
-    hx-delete="/memos/{{ memo.id }}"
-    hx-confirm="Are you sure?"
-    hx-target="#memo-{{ memo.id }}"
-    hx-swap="outerHTML swap:1s">
-    Delete
-</button>
-
-<!-- Filter -->
-<select
-    hx-get="/memos"
-    hx-target="#memo-list"
-    hx-trigger="change"
-    name="completed">
-    <option value="">All</option>
-    <option value="true">Completed</option>
-    <option value="false">Incomplete</option>
-</select>
-
-<!-- Search -->
-<input
-    type="search"
-    name="search"
-    hx-get="/memos"
-    hx-trigger="keyup changed delay:500ms"
-    hx-target="#memo-list"
-    placeholder="Search memos...">
-```
+- [ ] Test all vanilla JavaScript interactions
 
 ### Deliverables
 - ✅ Filtering works without page reload
@@ -1210,7 +1170,7 @@ The project is complete when:
 - ✅ All required stages (0-18) are complete
 - ✅ Application runs in Docker
 - ✅ All API endpoints work
-- ✅ Web UI is functional with HTMX
+- ✅ Web UI is functional with vanilla JavaScript
 - ✅ Test coverage >70%
 - ✅ Documentation is complete
 - ✅ Security features implemented
@@ -1234,7 +1194,7 @@ The project is complete when:
 | 9 | OpenAPI Docs | 3-5 |
 | 10 | Askama Templates | 3-4 |
 | 11 | Web Handlers | 6-8 |
-| 12 | HTMX Integration | 4-6 |
+| 12 | vanilla JavaScript Integration | 4-6 |
 | 13 | Static Assets | 4-6 |
 | 14 | Docker | 4-6 |
 | 15 | Security | 4-6 |
@@ -1269,7 +1229,7 @@ The project is complete when:
 - **Backend:** Actix Web (Rust)
 - **Database:** PostgreSQL 16 + SeaORM
 - **Templates:** Askama (compile-time, type-safe)
-- **Frontend:** HTMX (progressive enhancement)
+- **Frontend:** vanilla JavaScript (progressive enhancement)
 - **API Docs:** OpenAPI + Swagger UI
 - **Logging:** tracing + tracing-subscriber
 - **Testing:** cargo test + integration tests

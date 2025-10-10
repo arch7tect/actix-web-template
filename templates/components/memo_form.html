@@ -1,15 +1,6 @@
 <form
-    {% match memo %}
-    {% when Some with (m) %}
-        hx-put="/web/memos/{{ m.id }}"
-        hx-target="#memo-{{ m.id }}"
-        hx-on::after-swap="closeModal()"
-    {% when None %}
-        hx-post="/web/memos"
-        hx-target="#memo-list"
-        hx-on::after-swap="closeModal()"
-    {% endmatch %}
-    hx-swap="outerHTML"
+    id="memo-form"
+    data-memo-id="{% match memo %}{% when Some with (m) %}{{ m.id }}{% when None %}{% endmatch %}"
     class="memo-form">
 
     <h3>{% match memo %}{% when Some with (_) %}Edit Memo{% when None %}New Memo{% endmatch %}</h3>
@@ -64,7 +55,7 @@
         <button type="submit" class="btn btn-primary">
             {% match memo %}{% when Some with (_) %}Update{% when None %}Create{% endmatch %}
         </button>
-        <button type="button" class="btn btn-secondary" onclick="closeModal()">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('memo-form-modal')">
             Cancel
         </button>
     </div>
