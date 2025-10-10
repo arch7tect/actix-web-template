@@ -1,11 +1,9 @@
-use actix_web::{post, web, HttpResponse, Result};
 use crate::{dto::CreateMemoDto, error::AppError};
+use actix_web::{HttpResponse, Result, post, web};
 use validator::Validate;
 
 #[post("/test/dto/create")]
-pub async fn test_create_dto(
-    dto: web::Json<CreateMemoDto>,
-) -> Result<HttpResponse, AppError> {
+pub async fn test_create_dto(dto: web::Json<CreateMemoDto>) -> Result<HttpResponse, AppError> {
     dto.validate()
         .map_err(|e| AppError::Validation(format!("{}", e)))?;
 

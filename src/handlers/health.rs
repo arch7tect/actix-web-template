@@ -1,5 +1,5 @@
-use actix_web::{get, web, HttpResponse, Result};
 use crate::{error::AppError, state::AppState};
+use actix_web::{HttpResponse, Result, get, web};
 use serde::Serialize;
 
 #[derive(Serialize)]

@@ -1,5 +1,5 @@
-use actix_web::{get, HttpResponse, Result};
 use crate::error::AppError;
+use actix_web::{HttpResponse, Result, get};
 
 #[get("/test/error/notfound")]
 pub async fn test_not_found() -> Result<HttpResponse, AppError> {

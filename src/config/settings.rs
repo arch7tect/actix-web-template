@@ -140,7 +140,9 @@ impl Settings {
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
-        if self.app.env == Environment::Production && self.cors.allowed_origins.contains(&"*".to_string()) {
+        if self.app.env == Environment::Production
+            && self.cors.allowed_origins.contains(&"*".to_string())
+        {
             anyhow::bail!("CORS wildcard (*) is not allowed in production");
         }
 

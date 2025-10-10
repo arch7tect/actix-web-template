@@ -5,7 +5,11 @@ use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateMemoDto {
-    #[validate(length(min = 1, max = 200, message = "Title must be between 1 and 200 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 200,
+        message = "Title must be between 1 and 200 characters"
+    ))]
     pub title: String,
 
     #[validate(length(max = 1000, message = "Description must not exceed 1000 characters"))]
@@ -16,7 +20,11 @@ pub struct CreateMemoDto {
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateMemoDto {
-    #[validate(length(min = 1, max = 200, message = "Title must be between 1 and 200 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 200,
+        message = "Title must be between 1 and 200 characters"
+    ))]
     pub title: String,
 
     #[validate(length(max = 1000, message = "Description must not exceed 1000 characters"))]
@@ -28,7 +36,11 @@ pub struct UpdateMemoDto {
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct PatchMemoDto {
-    #[validate(length(min = 1, max = 200, message = "Title must be between 1 and 200 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 200,
+        message = "Title must be between 1 and 200 characters"
+    ))]
     pub title: Option<String>,
 
     #[validate(length(max = 1000, message = "Description must not exceed 1000 characters"))]
@@ -67,10 +79,11 @@ pub struct PaginationParams {
 
 impl PaginationParams {
     pub fn validate_order(&self) -> Result<(), String> {
-        if let Some(ref order) = self.order {
-            if order != "asc" && order != "desc" {
-                return Err("Order must be 'asc' or 'desc'".to_string());
-            }
+        if let Some(ref order) = self.order
+            && order != "asc"
+            && order != "desc"
+        {
+            return Err("Order must be 'asc' or 'desc'".to_string());
         }
         Ok(())
     }

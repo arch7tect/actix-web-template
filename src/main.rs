@@ -1,5 +1,5 @@
-use actix_web::{middleware::Logger, web, App, HttpServer};
 use actix_cors::Cors;
+use actix_web::{App, HttpServer, middleware::Logger, web};
 use actix_web_template::{config::Settings, handlers, state::AppState, utils::init_tracing};
 use sea_orm::Database;
 
@@ -18,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
     settings.validate()?;
 
     tracing::info!(
-        url = %settings.database.url.split('@').last().unwrap_or("***"),
+        url = %settings.database.url.split('@').next_back().unwrap_or("***"),
         max_connections = settings.database.max_connections,
         "Connecting to database"
     );
@@ -33,7 +33,8 @@ async fn main() -> anyhow::Result<()> {
 
     HttpServer::new(move || {
         let cors = if state.config.cors.allowed_origins.len() == 1
-            && state.config.cors.allowed_origins[0] == "*" {
+            && state.config.cors.allowed_origins[0] == "*"
+        {
             Cors::permissive()
         } else {
             let mut cors = Cors::default();
@@ -62,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::test_internal)
             .service(handlers::test_database)
             .service(handlers::test_create_dto)
+            .service(handlers::test_repo)
     })
     .bind(&bind_address)?
     .run()

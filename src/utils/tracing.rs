@@ -1,5 +1,5 @@
 use crate::config::settings::{LogFormat, LoggingConfig};
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 pub fn init_tracing(config: &LoggingConfig) -> anyhow::Result<()> {
     let env_filter = EnvFilter::try_from_default_env()
