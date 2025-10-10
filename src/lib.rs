@@ -1,4 +1,5 @@
 pub mod config;
+pub mod docs;
 pub mod dto;
 pub mod entities;
 pub mod error;

@@ -1,6 +1,6 @@
 pub mod memo_dto;
 
 pub use memo_dto::{
-    CreateMemoDto, MemoResponseDto, PaginatedResponse, PaginationParams, PatchMemoDto,
-    UpdateMemoDto,
+    CreateMemoDto, MemoResponseDto, PaginatedMemoResponse, PaginatedResponse, PaginationParams,
+    PatchMemoDto, UpdateMemoDto,
 };

@@ -1,7 +1,11 @@
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, middleware::Logger, web};
-use actix_web_template::{config::Settings, handlers, state::AppState, utils::init_tracing};
+use actix_web_template::{
+    config::Settings, docs::ApiDoc, handlers, state::AppState, utils::init_tracing,
+};
 use sea_orm::Database;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -50,12 +54,17 @@ async fn main() -> anyhow::Result<()> {
                 .max_age(3600)
         };
 
+        let openapi = ApiDoc::openapi();
+
         App::new()
             .app_data(web::Data::new(state.clone()))
             .app_data(web::JsonConfig::default().limit(state.config.api.max_request_size))
             .app_data(web::PayloadConfig::default().limit(state.config.api.max_request_size))
             .wrap(cors)
             .wrap(Logger::default())
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
+            )
             .service(handlers::health_check)
             .service(handlers::ready)
             .service(handlers::list_memos)

@@ -18,3 +18,5 @@ anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 validator = { version = "0.18", features = ["derive"] }
+utoipa = { version = "4", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "7", features = ["actix-web"] }

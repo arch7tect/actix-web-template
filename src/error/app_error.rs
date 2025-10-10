@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, error::ResponseError, http::StatusCode};
 use sea_orm::DbErr;
 use serde::Serialize;
 use thiserror::Error;
+use utoipa::ToSchema;
 use validator::ValidationErrors;
 
 #[derive(Debug, Error)]
@@ -19,7 +20,7 @@ pub enum AppError {
     Internal(String),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct ErrorResponse {
     pub error: String,
     pub message: String,

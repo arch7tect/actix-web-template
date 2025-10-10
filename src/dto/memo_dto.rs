@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateMemoDto {
     #[validate(length(
         min = 1,
@@ -18,7 +19,7 @@ pub struct CreateMemoDto {
     pub date_to: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct UpdateMemoDto {
     #[validate(length(
         min = 1,
@@ -34,7 +35,7 @@ pub struct UpdateMemoDto {
     pub completed: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct PatchMemoDto {
     #[validate(length(
         min = 1,
@@ -50,7 +51,7 @@ pub struct PatchMemoDto {
     pub completed: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 pub struct MemoResponseDto {
     pub id: Uuid,
     pub title: String,
@@ -101,9 +102,17 @@ impl Default for PaginationParams {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PaginatedResponse<T> {
     pub data: Vec<T>,
+    pub total: u64,
+    pub limit: u64,
+    pub offset: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct PaginatedMemoResponse {
+    pub data: Vec<MemoResponseDto>,
     pub total: u64,
     pub limit: u64,
     pub offset: u64,

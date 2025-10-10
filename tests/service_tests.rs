@@ -120,7 +120,10 @@ async fn test_patch_memo() {
 
     let patched = result.unwrap();
     assert_eq!(patched.title, "Patched Title");
-    assert_eq!(patched.description, Some("Original description".to_string()));
+    assert_eq!(
+        patched.description,
+        Some("Original description".to_string())
+    );
     assert!(!patched.completed);
 
     service.delete_memo(created.id).await.ok();
