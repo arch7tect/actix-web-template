@@ -1,6 +1,3 @@
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    tracing::info!("Starting Actix Web Memos application");
-
-    Ok(())
+fn main() {
+    println!("Hello from actix-web-template!");
 }
