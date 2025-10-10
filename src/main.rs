@@ -61,6 +61,7 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::test_validation)
             .service(handlers::test_internal)
             .service(handlers::test_database)
+            .service(handlers::test_create_dto)
     })
     .bind(&bind_address)?
     .run()
