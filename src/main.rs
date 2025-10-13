@@ -1,11 +1,16 @@
 use actix_cors::Cors;
 use actix_governor::{Governor, GovernorConfigBuilder};
-use actix_web::{App, HttpServer, middleware::Logger, web};
+use actix_web::{
+    App, HttpServer,
+    middleware::{Compress, Logger},
+    web,
+};
 use actix_web_template::{
     config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders, state::AppState,
     utils::init_tracing,
 };
-use sea_orm::Database;
+use sea_orm::{ConnectOptions, Database};
+use std::time::Duration;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -26,11 +31,22 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(
         url = %settings.database.url.split('@').next_back().unwrap_or("***"),
         max_connections = settings.database.max_connections,
-        "Connecting to database"
+        connect_timeout = settings.database.connect_timeout,
+        "Connecting to database with tuned connection pool"
     );
 
-    let db = Database::connect(&settings.database.url).await?;
-    tracing::info!("Database connection established");
+    let mut opt = ConnectOptions::new(&settings.database.url);
+    opt.max_connections(settings.database.max_connections)
+        .min_connections(2)
+        .connect_timeout(Duration::from_secs(settings.database.connect_timeout))
+        .acquire_timeout(Duration::from_secs(settings.database.connect_timeout))
+        .idle_timeout(Duration::from_secs(300))
+        .max_lifetime(Duration::from_secs(1800))
+        .sqlx_logging(true)
+        .sqlx_logging_level(tracing::log::LevelFilter::Debug);
+
+    let db = Database::connect(opt).await?;
+    tracing::info!("Database connection established with optimized pool settings");
 
     let state = AppState::new(settings.clone(), db);
 
@@ -70,6 +86,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::Data::new(state.clone()))
             .app_data(web::JsonConfig::default().limit(state.config.api.max_request_size))
             .app_data(web::PayloadConfig::default().limit(state.config.api.max_request_size))
+            .wrap(Compress::default())
             .wrap(SecurityHeaders)
             .wrap(rate_limiter)
             .wrap(cors)
@@ -103,6 +120,10 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::test_repo)
             .service(handlers::test_svc)
     })
+    .workers(num_cpus::get() * 2)
+    .keep_alive(Duration::from_secs(75))
+    .client_request_timeout(Duration::from_secs(60))
+    .client_disconnect_timeout(Duration::from_secs(5))
     .bind(&bind_address)?
     .run()
     .await?;
