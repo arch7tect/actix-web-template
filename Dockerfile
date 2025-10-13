@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Actix Web Memos Application
 
 # Build stage
-FROM rust:1.83 as builder
+FROM rust:latest as builder
 
 WORKDIR /app
 
