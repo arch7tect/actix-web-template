@@ -2,11 +2,7 @@ use actix_cors::Cors;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{App, HttpServer, middleware::Logger, web};
 use actix_web_template::{
-    config::Settings,
-    docs::ApiDoc,
-    handlers,
-    middleware::SecurityHeaders,
-    state::AppState,
+    config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders, state::AppState,
     utils::init_tracing,
 };
 use sea_orm::Database;

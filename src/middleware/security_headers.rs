@@ -1,7 +1,7 @@
-use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
-use actix_web::http::header::HeaderValue;
 use actix_web::Error;
-use std::future::{ready, Ready};
+use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
+use actix_web::http::header::HeaderValue;
+use std::future::{Ready, ready};
 use std::pin::Pin;
 
 pub struct SecurityHeaders;

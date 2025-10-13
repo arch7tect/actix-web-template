@@ -77,9 +77,13 @@ impl MemoService {
 
         tracing::debug!(title = %sanitized_title, "Creating new memo with sanitized input");
 
-        let memo =
-            MemoRepository::create(&self.db, sanitized_title, sanitized_description, dto.date_to)
-                .await?;
+        let memo = MemoRepository::create(
+            &self.db,
+            sanitized_title,
+            sanitized_description,
+            dto.date_to,
+        )
+        .await?;
 
         tracing::info!(memo_id = %memo.id, "Memo created successfully");
 
