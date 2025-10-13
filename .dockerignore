@@ -1,25 +1,32 @@
 # Build artifacts
 target/
-Cargo.lock
 
 # IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
+*.iml
 *~
 
 # Environment files
 .env
 .env.local
+!.env.example
+!.env.production
 
 # Git
 .git/
 .gitignore
 
+# CI/CD
+.github/
+.gitlab-ci.yml
+
 # Documentation
 *.md
 !README.md
+docs/
 
 # OS files
 .DS_Store
@@ -27,3 +34,13 @@ Thumbs.db
 
 # Test files
 tests/
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose*.yml
+
+# Backup files
+*.bak
