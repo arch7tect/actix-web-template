@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'memos-app-monitor'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'actix-web-memos'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['app:3737']
+        labels:
+          service: 'memos-api'
+          environment: 'development'
+    metrics_path: '/metrics'

@@ -3,7 +3,7 @@ use utoipa::OpenApi;
 use crate::{
     dto::{CreateMemoDto, MemoResponseDto, PaginatedMemoResponse, PatchMemoDto, UpdateMemoDto},
     error::ErrorResponse,
-    handlers::memos,
+    handlers::{memos, metrics},
 };
 
 #[derive(OpenApi)]
@@ -28,6 +28,7 @@ use crate::{
         memos::patch_memo,
         memos::delete_memo,
         memos::toggle_complete,
+        metrics::metrics,
     ),
     components(
         schemas(
@@ -40,7 +41,8 @@ use crate::{
         )
     ),
     tags(
-        (name = "memos", description = "Memo management endpoints")
+        (name = "memos", description = "Memo management endpoints"),
+        (name = "Observability", description = "Observability and monitoring endpoints")
     )
 )]
 pub struct ApiDoc;

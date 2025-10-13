@@ -86,7 +86,7 @@ async fn test_create_memo_web() {
 
     let req = test::TestRequest::post()
         .uri("/web/memos")
-        .set_form(&[
+        .set_form([
             ("title", "Web Created Memo"),
             ("description", "Test description"),
             ("date_to", &date_str),
@@ -155,7 +155,7 @@ async fn test_update_memo_web() {
 
     let req = test::TestRequest::put()
         .uri(&format!("/web/memos/{}", created.id))
-        .set_form(&[
+        .set_form([
             ("title", "Updated Web Title"),
             ("description", "Updated description"),
             ("date_to", &date_str),
@@ -243,7 +243,7 @@ async fn test_create_memo_web_validation_error() {
 
     let req = test::TestRequest::post()
         .uri("/web/memos")
-        .set_form(&[("title", ""), ("date_to", &date_str)])
+        .set_form([("title", ""), ("date_to", &date_str)])
         .to_request();
 
     let resp = test::call_service(&app, req).await;

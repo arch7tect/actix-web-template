@@ -10,6 +10,7 @@ pub async fn setup_test_db() -> sea_orm::DatabaseConnection {
         .expect("Failed to connect to test database")
 }
 
+#[allow(dead_code)]
 pub async fn setup_test_state() -> AppState {
     let settings = Settings::load().expect("Failed to load settings");
     let db = setup_test_db().await;

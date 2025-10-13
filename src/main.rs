@@ -6,8 +6,8 @@ use actix_web::{
     web,
 };
 use actix_web_template::{
-    config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders, state::AppState,
-    utils::init_tracing,
+    config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders,
+    observability::metrics::MetricsExporter, state::AppState, utils::init_tracing,
 };
 use sea_orm::{ConnectOptions, Database};
 use std::time::Duration;
@@ -48,6 +48,9 @@ async fn main() -> anyhow::Result<()> {
     let db = Database::connect(opt).await?;
     tracing::info!("Database connection established with optimized pool settings");
 
+    tracing::info!("Initializing Prometheus metrics exporter");
+    let metrics_exporter = MetricsExporter::default();
+
     let state = AppState::new(settings.clone(), db);
 
     let bind_address = format!("{}:{}", settings.server.host, settings.server.port);
@@ -84,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
 
         App::new()
             .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(metrics_exporter.clone()))
             .app_data(web::JsonConfig::default().limit(state.config.api.max_request_size))
             .app_data(web::PayloadConfig::default().limit(state.config.api.max_request_size))
             .wrap(Compress::default())
@@ -105,6 +109,7 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::toggle_memo_complete_web)
             .service(handlers::health_check)
             .service(handlers::ready)
+            .service(handlers::metrics_endpoint)
             .service(handlers::list_memos)
             .service(handlers::get_memo)
             .service(handlers::create_memo)

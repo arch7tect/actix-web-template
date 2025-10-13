@@ -44,7 +44,7 @@ mod tests {
     #[test]
     fn test_sanitize_optional_html_some() {
         let input = Some("<script>alert('xss')</script>Hello");
-        let result = sanitize_optional_html(input.as_deref());
+        let result = sanitize_optional_html(input);
         assert!(result.is_some());
         let sanitized = result.unwrap();
         assert!(!sanitized.contains("<script>"));
