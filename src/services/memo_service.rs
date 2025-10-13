@@ -6,6 +6,7 @@ use crate::{
     entities::memos,
     error::AppError,
     repository::MemoRepository,
+    utils::{sanitize_html, sanitize_optional_html},
 };
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
@@ -71,10 +72,14 @@ impl MemoService {
     pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, AppError> {
         dto.validate()?;
 
-        tracing::debug!(title = %dto.title, "Creating new memo");
+        let sanitized_title = sanitize_html(&dto.title);
+        let sanitized_description = sanitize_optional_html(dto.description.as_deref());
+
+        tracing::debug!(title = %sanitized_title, "Creating new memo with sanitized input");
 
         let memo =
-            MemoRepository::create(&self.db, dto.title, dto.description, dto.date_to).await?;
+            MemoRepository::create(&self.db, sanitized_title, sanitized_description, dto.date_to)
+                .await?;
 
         tracing::info!(memo_id = %memo.id, "Memo created successfully");
 
@@ -89,13 +94,16 @@ impl MemoService {
     ) -> Result<MemoResponseDto, AppError> {
         dto.validate()?;
 
-        tracing::debug!("Updating memo");
+        let sanitized_title = sanitize_html(&dto.title);
+        let sanitized_description = sanitize_optional_html(dto.description.as_deref());
+
+        tracing::debug!("Updating memo with sanitized input");
 
         let memo = MemoRepository::update(
             &self.db,
             id,
-            dto.title,
-            dto.description,
+            sanitized_title,
+            sanitized_description,
             dto.date_to,
             dto.completed,
         )
@@ -126,10 +134,18 @@ impl MemoService {
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Memo with id {} not found", id)))?;
 
-        let title = dto.title.unwrap_or(existing_memo.title);
-        let description = dto.description.or(existing_memo.description);
+        let title = dto
+            .title
+            .map(|t| sanitize_html(&t))
+            .unwrap_or(existing_memo.title);
+        let description = match dto.description {
+            Some(d) => sanitize_optional_html(Some(&d)),
+            None => existing_memo.description,
+        };
         let date_to = dto.date_to.unwrap_or_else(|| existing_memo.date_to.into());
         let completed = dto.completed.unwrap_or(existing_memo.completed);
+
+        tracing::debug!("Patching memo with sanitized input");
 
         let memo =
             MemoRepository::update(&self.db, id, title, description, date_to, completed).await?;

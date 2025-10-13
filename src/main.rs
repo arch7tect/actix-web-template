@@ -1,7 +1,13 @@
 use actix_cors::Cors;
+use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{App, HttpServer, middleware::Logger, web};
 use actix_web_template::{
-    config::Settings, docs::ApiDoc, handlers, state::AppState, utils::init_tracing,
+    config::Settings,
+    docs::ApiDoc,
+    handlers,
+    middleware::SecurityHeaders,
+    state::AppState,
+    utils::init_tracing,
 };
 use sea_orm::Database;
 use utoipa::OpenApi;
@@ -35,7 +41,15 @@ async fn main() -> anyhow::Result<()> {
     let bind_address = format!("{}:{}", settings.server.host, settings.server.port);
     tracing::info!(address = %bind_address, "Starting HTTP server");
 
+    tracing::info!("Configuring rate limiting: 100 requests per minute per IP");
+    let governor_conf = GovernorConfigBuilder::default()
+        .milliseconds_per_request(600)
+        .burst_size(100)
+        .finish()
+        .unwrap();
+
     HttpServer::new(move || {
+        let rate_limiter = Governor::new(&governor_conf);
         let cors = if state.config.cors.allowed_origins.len() == 1
             && state.config.cors.allowed_origins[0] == "*"
         {
@@ -60,6 +74,8 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::Data::new(state.clone()))
             .app_data(web::JsonConfig::default().limit(state.config.api.max_request_size))
             .app_data(web::PayloadConfig::default().limit(state.config.api.max_request_size))
+            .wrap(SecurityHeaders)
+            .wrap(rate_limiter)
             .wrap(cors)
             .wrap(Logger::default())
             .service(actix_files::Files::new("/static", "./static").show_files_listing())
