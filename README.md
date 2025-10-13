@@ -1,5 +1,10 @@
 # Actix Web Memos Application
 
+[![Test](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/test.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/test.yml)
+[![Lint](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/lint.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/lint.yml)
+[![Release](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/release.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 A modern, production-ready web application built with Rust and Actix Web for managing memos. Features a full REST API, server-side rendered web UI with vanilla JavaScript enhancements, comprehensive testing, and robust security features.
 
 ## Features
@@ -524,7 +529,7 @@ Potential future enhancements:
 - [ ] WebSocket support for real-time updates
 - [ ] GraphQL API
 - [ ] Mobile app (React Native or Flutter)
-- [ ] CI/CD pipeline (GitHub Actions)
+- [x] CI/CD pipeline (GitHub Actions)
 - [ ] Observability stack (Jaeger, Prometheus, Grafana)
 
 ---

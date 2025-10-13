@@ -1,0 +1,151 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'staging' || (github.event_name == 'push' && contains(github.ref, 'beta'))
+    environment:
+      name: staging
+      url: https://staging.example.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
+          # Add your staging deployment commands here
+          # Examples:
+          # - SSH to server and pull Docker image
+          # - kubectl apply for Kubernetes
+          # - Terraform apply for infrastructure
+          # - Ansible playbook for configuration management
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          # Add smoke test commands here
+          # curl --fail https://staging.example.com/health
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "Deployment status: ${{ job.status }}"
+          # Add notification logic here (Slack, email, etc.)
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'production' || (github.event_name == 'push' && !contains(github.ref, 'beta') && !contains(github.ref, 'alpha'))
+    environment:
+      name: production
+      url: https://example.com
+    needs: []  # Add staging deployment as dependency if needed
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
+          # Add your production deployment commands here
+
+      - name: Run health checks
+        run: |
+          echo "Running production health checks..."
+          # Add health check commands here
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "Production deployment status: ${{ job.status }}"
+          # Add notification logic here
+
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure()
+    needs: [deploy-production]
+    steps:
+      - name: Rollback
+        run: |
+          echo "Rolling back deployment..."
+          # Add rollback commands here
+
+# Deployment Instructions:
+#
+# This is a template deployment workflow. To use it:
+#
+# 1. Configure GitHub Environments:
+#    - Go to Settings > Environments
+#    - Create 'staging' and 'production' environments
+#    - Add protection rules for production (require approvals)
+#    - Add environment secrets (SSH keys, API tokens, etc.)
+#
+# 2. Choose a deployment strategy:
+#    - Docker: Pull and run the image from GHCR
+#    - Kubernetes: kubectl apply -f k8s/
+#    - Cloud Platform: Use platform-specific actions
+#      - AWS: aws-actions/configure-aws-credentials
+#      - Azure: azure/login
+#      - GCP: google-github-actions/auth
+#
+# 3. Add deployment scripts:
+#    - Create deployment scripts in a 'scripts/' directory
+#    - Or use existing tools like Terraform, Ansible, Helm
+#
+# 4. Configure secrets:
+#    - DEPLOY_SSH_KEY (for SSH deployments)
+#    - KUBECONFIG (for Kubernetes)
+#    - Cloud provider credentials
+#
+# 5. Set up monitoring and notifications:
+#    - Slack webhook: SLACK_WEBHOOK_URL
+#    - Email notifications
+#    - PagerDuty, Datadog, etc.
+#
+# Example Docker deployment to a server:
+#
+# - name: Deploy via SSH
+#   uses: appleboy/ssh-action@master
+#   with:
+#     host: ${{ secrets.DEPLOY_HOST }}
+#     username: ${{ secrets.DEPLOY_USER }}
+#     key: ${{ secrets.DEPLOY_SSH_KEY }}
+#     script: |
+#       docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+#       docker-compose down
+#       docker-compose up -d
+#
+# Example Kubernetes deployment:
+#
+# - name: Deploy to Kubernetes
+#   uses: azure/k8s-deploy@v4
+#   with:
+#     manifests: |
+#       k8s/deployment.yml
+#       k8s/service.yml
+#     images: |
+#       ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
