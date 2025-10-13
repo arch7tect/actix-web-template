@@ -50,7 +50,7 @@ services:
   # Access:
   # - Jaeger UI: http://localhost:16686
   # - Prometheus: http://localhost:9090
-  # - Grafana: http://localhost:3000 (admin/admin)
+  # - Grafana: http://localhost:3001 (admin/admin)
   # - Metrics: http://localhost:3737/metrics
 
   jaeger:
@@ -84,7 +84,7 @@ services:
     image: grafana/grafana:10.2.3
     container_name: memos-grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin

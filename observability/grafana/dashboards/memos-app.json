@@ -80,7 +80,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "rate(http_requests_total[5m])",
+          "expr": "rate(actix_web_http_requests_total[5m])",
           "refId": "A"
         }
       ],

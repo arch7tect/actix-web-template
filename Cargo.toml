@@ -33,3 +33,4 @@ opentelemetry-otlp = { version = "0.16", features = ["metrics", "trace", "grpc-t
 opentelemetry-prometheus = "0.16"
 prometheus = "0.13"
 tracing-opentelemetry = "0.24"
+actix-web-prom = "0.8"

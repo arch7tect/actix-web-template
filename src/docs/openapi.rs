@@ -3,7 +3,7 @@ use utoipa::OpenApi;
 use crate::{
     dto::{CreateMemoDto, MemoResponseDto, PaginatedMemoResponse, PatchMemoDto, UpdateMemoDto},
     error::ErrorResponse,
-    handlers::{memos, metrics},
+    handlers::memos,
 };
 
 #[derive(OpenApi)]
@@ -28,7 +28,6 @@ use crate::{
         memos::patch_memo,
         memos::delete_memo,
         memos::toggle_complete,
-        metrics::metrics,
     ),
     components(
         schemas(
