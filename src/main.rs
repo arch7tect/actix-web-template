@@ -7,9 +7,7 @@ use actix_web::{
 };
 use actix_web_prom::PrometheusMetricsBuilder;
 use actix_web_template::{
-    config::Settings, docs::ApiDoc, handlers,
-    middleware::SecurityHeaders,
-    state::AppState,
+    config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders, state::AppState,
     utils::init_tracing,
 };
 use sea_orm::{ConnectOptions, Database};

@@ -7,33 +7,33 @@ pub fn init_tracing_with_otlp(
     service_name: &str,
     otlp_endpoint: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let tracer =
-        if let Some(endpoint) = otlp_endpoint {
-            tracing::info!(
-                "Initializing OpenTelemetry with OTLP endpoint: {}",
-                endpoint
-            );
+    let tracer = if let Some(endpoint) = otlp_endpoint {
+        tracing::info!(
+            "Initializing OpenTelemetry with OTLP endpoint: {}",
+            endpoint
+        );
 
-            let exporter = opentelemetry_otlp::SpanExporter::builder()
-                .with_tonic()
-                .with_endpoint(endpoint)
-                .build()?;
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint(endpoint)
+            .build()?;
 
-            let provider = sdktrace::SdkTracerProvider::builder()
-                .with_batch_exporter(exporter)
-                .with_resource(Resource::builder()
+        let provider = sdktrace::SdkTracerProvider::builder()
+            .with_batch_exporter(exporter)
+            .with_resource(
+                Resource::builder()
                     .with_service_name(service_name.to_string())
-                    .build()
-                )
-                .build();
+                    .build(),
+            )
+            .build();
 
-            let tracer = provider.tracer(service_name.to_string());
+        let tracer = provider.tracer(service_name.to_string());
 
-            Some(tracer)
-        } else {
-            tracing::info!("OTLP endpoint not configured, skipping OpenTelemetry setup");
-            None
-        };
+        Some(tracer)
+    } else {
+        tracing::info!("OTLP endpoint not configured, skipping OpenTelemetry setup");
+        None
+    };
 
     let telemetry_layer = tracer.map(|t| tracing_opentelemetry::layer().with_tracer(t));
 
