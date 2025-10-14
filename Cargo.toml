@@ -29,7 +29,5 @@ num_cpus = "1.17"
 opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "grpc-tonic"] }
-opentelemetry-prometheus = "0.29"
-prometheus = "0.14"
 tracing-opentelemetry = "0.32"
 actix-web-prom = "0.10"
