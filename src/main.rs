@@ -7,8 +7,8 @@ use actix_web::{
 };
 use actix_web_prom::PrometheusMetricsBuilder;
 use actix_web_template::{
-    config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders, state::AppState,
-    utils::init_tracing,
+    config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders,
+    observability::tracing::init_tracing_with_otlp, state::AppState,
 };
 use sea_orm::{ConnectOptions, Database};
 use std::time::Duration;
@@ -19,7 +19,9 @@ use utoipa_swagger_ui::SwaggerUi;
 async fn main() -> anyhow::Result<()> {
     let settings = Settings::load()?;
 
-    init_tracing(&settings.logging)?;
+    let otlp_endpoint = std::env::var("OTLP_ENDPOINT").ok();
+    init_tracing_with_otlp("memos-api", otlp_endpoint)
+        .map_err(|e| anyhow::anyhow!("Failed to initialize tracing: {}", e))?;
 
     tracing::info!(
         version = settings.app.version,
