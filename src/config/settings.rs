@@ -65,7 +65,7 @@ pub enum LogFormat {
 
 impl Settings {
     pub fn load() -> anyhow::Result<Self> {
-        dotenv::dotenv().ok();
+        dotenvy::dotenv().ok();
 
         let server = ServerConfig {
             host: env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),

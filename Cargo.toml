@@ -1,7 +1,8 @@
 [package]
 name = "actix-web-template"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 actix-web = { version = "4", features = ["compress-gzip", "compress-brotli"] }
@@ -12,7 +13,7 @@ uuid = { version = "1.18", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1.47", features = ["full"] }
 sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
-dotenv = "0.15"
+dotenvy = "0.15"
 thiserror = "1.0"
 anyhow = "1.0"
 tracing = "0.1"

@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "actix-web-template"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "actix-cors",
  "actix-files",
@@ -263,7 +263,7 @@ dependencies = [
  "anyhow",
  "askama",
  "chrono",
- "dotenv",
+ "dotenvy",
  "num_cpus",
  "opentelemetry",
  "opentelemetry-otlp",
@@ -931,12 +931,6 @@ dependencies = [
  "quote",
  "syn 2.0.106",
 ]
-
-[[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
 name = "dotenvy"
