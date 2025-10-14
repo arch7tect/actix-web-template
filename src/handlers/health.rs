@@ -30,6 +30,7 @@ pub struct ReadyResponse {
     )
 )]
 #[get("/health")]
+#[tracing::instrument(name = "GET /health", skip(state))]
 pub async fn health(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let db_status = match state.db.ping().await {
         Ok(_) => "connected",
@@ -62,6 +63,7 @@ pub async fn health(state: web::Data<AppState>) -> Result<HttpResponse, AppError
     )
 )]
 #[get("/ready")]
+#[tracing::instrument(name = "GET /ready", skip(state))]
 pub async fn ready(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
     let is_ready = state.db.ping().await.is_ok();
 
