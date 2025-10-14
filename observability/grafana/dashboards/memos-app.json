@@ -137,7 +137,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "100 * (1 - rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m]))",
+          "expr": "100 * (sum(rate(actix_web_http_requests_total{status=~\"2..|3..\"}[5m])) / sum(rate(actix_web_http_requests_total[5m])) or on() vector(100))",
           "refId": "A"
         }
       ],
@@ -206,17 +206,17 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m])) * 1000",
+          "expr": "histogram_quantile(0.50, rate(actix_web_http_requests_duration_seconds_bucket[5m])) * 1000",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) * 1000",
+          "expr": "histogram_quantile(0.95, rate(actix_web_http_requests_duration_seconds_bucket[5m])) * 1000",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) * 1000",
+          "expr": "histogram_quantile(0.99, rate(actix_web_http_requests_duration_seconds_bucket[5m])) * 1000",
           "legendFormat": "p99",
           "refId": "C"
         }
