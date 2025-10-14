@@ -4,13 +4,11 @@ use actix_web::{
 use uuid::Uuid;
 
 use crate::{
-    dto::{CreateMemoDto, PaginationParams, PatchMemoDto, UpdateMemoDto},
+    dto::{CreateMemoDto, MemoResponseDto, PaginationParams, PatchMemoDto, UpdateMemoDto, PaginatedMemoResponse},
+    error::ErrorResponse,
     services::MemoService,
     state::AppState,
 };
-
-#[allow(unused_imports)]
-use crate::dto::PaginatedMemoResponse;
 
 /// List all memos
 ///

@@ -1,6 +1,6 @@
-use opentelemetry::KeyValue;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{Resource, runtime, trace as sdktrace};
+use opentelemetry_sdk::{Resource, trace as sdktrace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 pub fn init_tracing_with_otlp(
@@ -14,18 +14,20 @@ pub fn init_tracing_with_otlp(
                 endpoint
             );
 
-            let tracer =
-                opentelemetry_otlp::new_pipeline()
-                    .tracing()
-                    .with_exporter(
-                        opentelemetry_otlp::new_exporter()
-                            .tonic()
-                            .with_endpoint(endpoint),
-                    )
-                    .with_trace_config(sdktrace::Config::default().with_resource(Resource::new(
-                        vec![KeyValue::new("service.name", service_name.to_string())],
-                    )))
-                    .install_batch(runtime::Tokio)?;
+            let exporter = opentelemetry_otlp::SpanExporter::builder()
+                .with_tonic()
+                .with_endpoint(endpoint)
+                .build()?;
+
+            let provider = sdktrace::SdkTracerProvider::builder()
+                .with_batch_exporter(exporter)
+                .with_resource(Resource::builder()
+                    .with_service_name(service_name.to_string())
+                    .build()
+                )
+                .build();
+
+            let tracer = provider.tracer(service_name.to_string());
 
             Some(tracer)
         } else {
@@ -49,5 +51,7 @@ pub fn init_tracing_with_otlp(
 }
 
 pub fn shutdown_tracing() {
-    opentelemetry::global::shutdown_tracer_provider();
+    // The shutdown_tracer_provider function was removed in opentelemetry 0.31
+    // Tracer providers are now automatically shut down when dropped
+    tracing::info!("Shutting down tracing");
 }

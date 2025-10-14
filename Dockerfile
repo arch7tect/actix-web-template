@@ -17,6 +17,9 @@ COPY migration ./migration
 # Build for release
 RUN cargo build --release
 
+# Build migration binary (it builds to migration/target/release/)
+RUN cd migration && cargo build --release
+
 # Runtime stage
 FROM debian:bookworm-slim
 
@@ -30,8 +33,9 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Copy the binary from builder
+# Copy the binaries from builder
 COPY --from=builder /app/target/release/actix-web-template .
+COPY --from=builder /app/migration/target/release/migration ./migration
 
 # Copy templates and static files
 COPY --from=builder /app/templates ./templates
@@ -44,5 +48,13 @@ EXPOSE 3737
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3737/health || exit 1
 
-# Run the application
-CMD ["./actix-web-template"]
+# Create startup script to run migrations then start app
+RUN echo '#!/bin/sh\n\
+echo "Running database migrations..."\n\
+./migration\n\
+echo "Starting application..."\n\
+exec ./actix-web-template' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+# Run the startup script
+CMD ["/app/entrypoint.sh"]

@@ -1,6 +1,6 @@
 [package]
 name = "actix-web-template"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
@@ -8,29 +8,28 @@ actix-web = { version = "4", features = ["compress-gzip", "compress-brotli"] }
 actix-cors = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-uuid = { version = "1.0", features = ["serde", "v4"] }
+uuid = { version = "1.18", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-tokio = { version = "1", features = ["full"] }
-sea-orm = { version = "1.0", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
+tokio = { version = "1.47", features = ["full"] }
+sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 dotenv = "0.15"
 thiserror = "1.0"
 anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-validator = { version = "0.18", features = ["derive"] }
-utoipa = { version = "4", features = ["actix_extras", "chrono", "uuid"] }
-utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
-askama = "0.12"
-askama_actix = "0.14"
+validator = { version = "0.20", features = ["derive"] }
+utoipa = { version = "5.4", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9.0", features = ["actix-web"] }
+askama = "0.14"
 actix-files = "0.6"
-actix-governor = "0.6"
-ammonia = "4.0"
-num_cpus = "1.16"
+actix-governor = "0.10"
+ammonia = "4.1"
+num_cpus = "1.17"
 # Observability
-opentelemetry = { version = "0.23", features = ["metrics", "trace"] }
-opentelemetry_sdk = { version = "0.23", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.16", features = ["metrics", "trace", "grpc-tonic"] }
-opentelemetry-prometheus = "0.16"
-prometheus = "0.13"
-tracing-opentelemetry = "0.24"
-actix-web-prom = "0.8"
+opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "grpc-tonic"] }
+opentelemetry-prometheus = "0.29"
+prometheus = "0.14"
+tracing-opentelemetry = "0.32"
+actix-web-prom = "0.10"
