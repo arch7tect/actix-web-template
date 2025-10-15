@@ -6,6 +6,8 @@ In this chapter, we'll create the foundational structure of our Actix Web applic
 
 By the end of this chapter, you'll have a running web server that responds to HTTP requests and demonstrates the core patterns used throughout the rest of the tutorial.
 
+> **Note on Tutorial Approach**: This tutorial builds the application incrementally, starting simple and adding features chapter by chapter. The actual codebase in this repository is already at Stage 18 (fully production-ready) with advanced features like OpenTelemetry tracing, Prometheus metrics, rate limiting, and comprehensive security. Each chapter will note where the tutorial code differs from the production implementation, allowing you to learn concepts step-by-step while seeing how they're applied in a real production system.
+
 ## Prerequisites
 
 ### Completed
