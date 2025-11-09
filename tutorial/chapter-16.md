@@ -433,6 +433,40 @@ jobs:
   - Missing error handling
   - Non-idiomatic code
 
+**Common clippy fixes:**
+
+1. **Collapsible if statements** (`clippy::collapsible_if`):
+```rust
+// Before (nested ifs)
+if let Some(ref order) = self.order {
+    if order != "asc" && order != "desc" {
+        return Err("Invalid order".to_string());
+    }
+}
+
+// After (collapsed with let-chain)
+if let Some(ref order) = self.order
+    && order != "asc" && order != "desc"
+{
+    return Err("Invalid order".to_string());
+}
+```
+
+2. **Redundant pattern matching** (`clippy::redundant_pattern_matching`):
+```rust
+// Before
+if let Err(_) = result {
+    handle_error();
+}
+
+// After
+if result.is_err() {
+    handle_error();
+}
+```
+
+Run `cargo clippy --fix` to auto-fix many issues.
+
 #### 3. Security Audit (`audit`)
 
 ```yaml
@@ -456,6 +490,25 @@ error: 1 vulnerability found!
 │ Title   │ tokio: reject_remote_clients opens a denial of service vector   │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Configuring cargo-audit exceptions:**
+
+Sometimes vulnerabilities appear in dependencies you don't actually use at runtime (e.g., MySQL features when you only use PostgreSQL). You can document these exceptions in `.cargo/audit.toml`:
+
+```toml
+# .cargo/audit.toml
+[advisories]
+# Document why each advisory is ignored
+ignore = [
+    "RUSTSEC-2023-0071",  # rsa crate (via sqlx-mysql, we only use PostgreSQL)
+]
+```
+
+**Important:**
+- Only ignore advisories you've thoroughly investigated
+- Document WHY each is ignored (future maintainers need context)
+- Re-evaluate ignored advisories periodically
+- This is transparency, not hiding security issues
 
 #### 4. Cargo Deny (`deny`)
 
