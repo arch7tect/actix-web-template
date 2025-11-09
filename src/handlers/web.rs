@@ -139,6 +139,7 @@ pub async fn create_memo_web(
         title: form.title.clone(),
         description: form.description.clone(),
         date_to,
+        tags: vec![], // TODO: Parse tags from form
     };
 
     let _memo = service.create_memo(dto).await?;
@@ -211,6 +212,7 @@ pub async fn update_memo_web(
         description: form.description.clone(),
         date_to,
         completed,
+        tags: vec![], // TODO: Parse tags from form
     };
 
     let memo = service.update_memo(id, dto).await?;

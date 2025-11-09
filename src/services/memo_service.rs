@@ -328,6 +328,7 @@ impl MemoService {
             completed: entity.completed,
             created_at: entity.created_at.into(),
             updated_at: entity.updated_at.into(),
+            tags: Vec::new(), // TODO: Load tags from database
         }
     }
 }

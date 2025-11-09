@@ -17,6 +17,10 @@ pub struct CreateMemoDto {
     pub description: Option<String>,
 
     pub date_to: DateTime<Utc>,
+
+    #[validate(length(max = 20, message = "Maximum 20 tags allowed"))]
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -33,6 +37,10 @@ pub struct UpdateMemoDto {
 
     pub date_to: DateTime<Utc>,
     pub completed: bool,
+
+    #[validate(length(max = 20, message = "Maximum 20 tags allowed"))]
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -49,6 +57,9 @@ pub struct PatchMemoDto {
 
     pub date_to: Option<DateTime<Utc>>,
     pub completed: Option<bool>,
+
+    #[validate(length(max = 20, message = "Maximum 20 tags allowed"))]
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
@@ -60,6 +71,7 @@ pub struct MemoResponseDto {
     pub completed: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub tags: Vec<String>,
 }
 
 impl MemoResponseDto {
@@ -82,6 +94,9 @@ pub struct PaginationParams {
     pub sort_by: Option<String>,
 
     pub order: Option<String>,
+
+    /// Filter by tags (comma-separated), matches memos with ANY of the specified tags (OR logic)
+    pub tags: Option<String>,
 }
 
 impl PaginationParams {
@@ -94,6 +109,17 @@ impl PaginationParams {
         }
         Ok(())
     }
+
+    /// Parse comma-separated tags into a vector
+    pub fn parse_tags(&self) -> Option<Vec<String>> {
+        self.tags.as_ref().map(|tags_str| {
+            tags_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+    }
 }
 
 impl Default for PaginationParams {
@@ -104,6 +130,7 @@ impl Default for PaginationParams {
             completed: None,
             sort_by: Some("created_at".to_string()),
             order: Some("desc".to_string()),
+            tags: None,
         }
     }
 }
@@ -133,4 +160,10 @@ impl<T> PaginatedResponse<T> {
             offset,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TagResponseDto {
+    pub name: String,
+    pub count: i64,
 }

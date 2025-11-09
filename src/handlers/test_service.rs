@@ -20,6 +20,7 @@ pub async fn test_service(state: web::Data<AppState>) -> impl Responder {
         title: "Service Layer Test Memo".to_string(),
         description: Some("Testing service layer operations".to_string()),
         date_to: test_date,
+        tags: vec![],
     };
 
     let created_memo = match service.create_memo(create_dto).await {
@@ -57,6 +58,7 @@ pub async fn test_service(state: web::Data<AppState>) -> impl Responder {
         description: Some("Updated via service layer".to_string()),
         date_to: test_date,
         completed: true,
+        tags: vec![],
     };
 
     let updated_memo = match service.update_memo(created_memo.id, update_dto).await {
@@ -79,6 +81,7 @@ pub async fn test_service(state: web::Data<AppState>) -> impl Responder {
         description: None,
         date_to: None,
         completed: None,
+        tags: None,
     };
 
     let patched_memo = match service.patch_memo(created_memo.id, patch_dto).await {
@@ -117,6 +120,7 @@ pub async fn test_service(state: web::Data<AppState>) -> impl Responder {
         completed: None,
         sort_by: Some("created_at".to_string()),
         order: Some("desc".to_string()),
+        tags: None,
     };
 
     let all_memos = match service.get_all_memos(params).await {
@@ -144,6 +148,7 @@ pub async fn test_service(state: web::Data<AppState>) -> impl Responder {
         completed: Some(false),
         sort_by: Some("created_at".to_string()),
         order: Some("desc".to_string()),
+        tags: None,
     };
 
     let completed_memos = match service.get_all_memos(completed_params).await {

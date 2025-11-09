@@ -2,4 +2,6 @@
 
 pub mod prelude;
 
+pub mod memo_tags;
 pub mod memos;
+pub mod tags;
