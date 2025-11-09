@@ -1,9 +1,12 @@
 use utoipa::OpenApi;
 
 use crate::{
-    dto::{CreateMemoDto, MemoResponseDto, PaginatedMemoResponse, PatchMemoDto, UpdateMemoDto},
+    dto::{
+        CreateMemoDto, MemoResponseDto, PaginatedMemoResponse, PatchMemoDto, TagResponseDto,
+        UpdateMemoDto,
+    },
     error::ErrorResponse,
-    handlers::{health, memos},
+    handlers::{health, memos, tags},
 };
 
 #[derive(OpenApi)]
@@ -28,6 +31,7 @@ use crate::{
         memos::patch_memo,
         memos::delete_memo,
         memos::toggle_complete,
+        tags::list_tags,
         health::health,
         health::ready,
     ),
@@ -38,6 +42,7 @@ use crate::{
             UpdateMemoDto,
             PatchMemoDto,
             PaginatedMemoResponse,
+            TagResponseDto,
             ErrorResponse,
             health::HealthResponse,
             health::ReadyResponse,
@@ -45,6 +50,7 @@ use crate::{
     ),
     tags(
         (name = "memos", description = "Memo management endpoints"),
+        (name = "Tags", description = "Tag management and listing endpoints"),
         (name = "Observability", description = "Health checks and monitoring endpoints. Metrics available at /metrics endpoint (Prometheus format).")
     )
 )]
