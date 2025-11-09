@@ -119,6 +119,7 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::patch_memo)
             .service(handlers::delete_memo)
             .service(handlers::toggle_complete)
+            .service(handlers::list_tags)
             .service(handlers::test_not_found)
             .service(handlers::test_validation)
             .service(handlers::test_internal)
