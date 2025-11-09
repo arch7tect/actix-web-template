@@ -1,0 +1,18 @@
+# cargo-audit configuration
+# https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+# Ignore the rsa vulnerability from MySQL dependencies
+# We only use PostgreSQL, but --all-features in CI pulls in MySQL support
+ignore = [
+    "RUSTSEC-2023-0071",  # rsa crate Marvin Attack (via sqlx-mysql)
+]
+
+# Explanation for ignoring RUSTSEC-2023-0071:
+# This vulnerability is in the rsa crate v0.9.8, which is pulled in by sqlx-mysql.
+# Our application only uses PostgreSQL (sqlx-postgres feature).
+# The MySQL dependency is only included when building with --all-features (used in CI).
+# Since we never use MySQL features at runtime, this vulnerability does not affect us.
+#
+# Dependency path: rsa → sqlx-mysql → sea-orm (when all features enabled)
+# Our actual usage: sea-orm (postgres features only)
