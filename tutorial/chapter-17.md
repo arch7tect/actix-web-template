@@ -98,6 +98,172 @@ HTTP Request (root span)
   └─ Response serialization
 ```
 
+## The Observability Stack Components
+
+Our observability stack consists of five main components. Here's what each one does and why we need it:
+
+### 1. OpenTelemetry (Instrumentation)
+
+**What it is:**
+OpenTelemetry is a vendor-neutral framework for instrumenting, generating, collecting, and exporting telemetry data (traces, metrics, and logs).
+
+**What it does:**
+- Provides APIs to instrument your code
+- Collects telemetry data from your application
+- Exports data to various backends using the OTLP (OpenTelemetry Protocol)
+- Acts as a standardized layer between your code and observability backends
+
+**Why we need it:**
+- Prevents vendor lock-in (switch backends without changing code)
+- Industry standard (CNCF graduated project)
+- Single instrumentation works with multiple tools
+- Future-proof your observability setup
+
+**In our stack:**
+OpenTelemetry instruments our Rust code and sends data to Jaeger (traces) and Prometheus (metrics).
+
+### 2. Jaeger (Distributed Tracing)
+
+**What it is:**
+Jaeger is an open-source distributed tracing platform originally developed by Uber.
+
+**What it does:**
+- Receives trace data via OTLP (OpenTelemetry Protocol)
+- Stores traces in a time-series database
+- Provides a web UI to visualize request flows
+- Shows timing breakdowns for each operation
+- Helps identify performance bottlenecks
+
+**Why we need it:**
+- Understand the complete journey of a request
+- Find slow database queries or API calls
+- Debug issues that span multiple services or layers
+- Visualize dependencies between operations
+- Measure actual latency at each step
+
+**Example use case:**
+A user reports that creating a memo is slow. With Jaeger, you can:
+1. Find the specific trace for that request
+2. See it took 250ms total
+3. Identify that 200ms was spent in the database
+4. Discover an unoptimized query causing the delay
+
+**In our stack:**
+Jaeger receives traces from our app via OpenTelemetry's OTLP exporter on port 4317.
+
+### 3. Prometheus (Metrics Collection)
+
+**What it is:**
+Prometheus is a time-series database and monitoring system designed for reliability and scalability.
+
+**What it does:**
+- Scrapes metrics endpoints (HTTP GET on `/metrics`)
+- Stores time-series data (value over time)
+- Provides a powerful query language (PromQL)
+- Evaluates alerting rules
+- Retains metrics for analysis
+
+**Why we need it:**
+- Monitor trends over time (not just single requests)
+- Track request rates, error rates, latency percentiles
+- Identify patterns (traffic spikes, gradual degradation)
+- Set up alerts based on thresholds
+- Historical data for capacity planning
+
+**Example metrics:**
+- `http_requests_total`: How many requests per second?
+- `http_request_duration_seconds`: What's the 95th percentile latency?
+- `db_connections_active`: Are we running out of connections?
+
+**In our stack:**
+Prometheus scrapes metrics from our app's `/metrics` endpoint every 10 seconds.
+
+### 4. Grafana (Visualization & Dashboards)
+
+**What it is:**
+Grafana is an analytics and interactive visualization platform.
+
+**What it does:**
+- Connects to multiple data sources (Prometheus, Loki, Jaeger)
+- Creates dashboards with graphs, charts, and tables
+- Provides a unified UI for all observability data
+- Supports alerting and notifications
+- Allows correlation between different data types
+
+**Why we need it:**
+- Single pane of glass for all observability
+- Beautiful, customizable dashboards
+- Correlate metrics, traces, and logs
+- Share dashboards with team
+- Set up visual alerts
+
+**Example dashboard panels:**
+- Request rate graph (from Prometheus)
+- Error rate chart (from Prometheus)
+- Recent logs (from Loki)
+- Trace links (from Jaeger)
+- Database connection pool usage
+
+**In our stack:**
+Grafana connects to Prometheus, Loki, and Jaeger, providing a unified view of your application's health.
+
+### 5. Loki (Log Aggregation)
+
+**What it is:**
+Loki is a log aggregation system designed to be cost-effective and easy to operate. It's like Prometheus but for logs.
+
+**What it does:**
+- Collects logs from all containers
+- Indexes only metadata (not full text, unlike Elasticsearch)
+- Stores log lines for querying
+- Provides LogQL query language (similar to PromQL)
+- Integrates seamlessly with Grafana
+
+**Why we need it:**
+- Centralized logging across all services
+- Search logs by container, time range, or keywords
+- Correlate logs with metrics and traces
+- Lower storage costs than traditional log systems
+- Easy to query and filter
+
+**Example queries:**
+- All error logs: `{container="memos-app"} |= "ERROR"`
+- Logs from specific endpoint: `{container="memos-app"} |= "/api/v1/memos"`
+- Rate of errors: `rate({container="memos-app"} |= "ERROR" [5m])`
+
+**In our stack:**
+Loki collects logs from all Docker containers and makes them queryable in Grafana.
+
+### How They Work Together
+
+Here's how all components interact in a typical request:
+
+```
+1. Request arrives at your app
+   ↓
+2. OpenTelemetry creates a trace span
+   ↓
+3. Your code logs events → Loki (via Docker logs)
+   ↓
+4. Request completes, metrics updated → Prometheus (via /metrics)
+   ↓
+5. Trace sent → Jaeger (via OTLP)
+   ↓
+6. You open Grafana to investigate slow requests
+   ↓
+7. Grafana shows:
+   - Prometheus metrics: Request rate spiked at 2 PM
+   - Jaeger traces: Find slow traces from that time
+   - Loki logs: See error logs correlating with slow traces
+   ↓
+8. You identify the issue and fix it
+```
+
+**The Power of Integration:**
+- See a spike in error rate (Prometheus) → Check logs (Loki) → Find affected requests (Jaeger traces)
+- Notice high latency (Prometheus) → View specific slow traces (Jaeger) → Identify bottleneck
+- Investigate an error (Logs in Loki) → Find the trace ID → Visualize the full request in Jaeger
+
 ## Step-by-Step Instructions
 
 ### Step 1: Add OpenTelemetry Dependencies
