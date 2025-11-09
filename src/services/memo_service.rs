@@ -5,7 +5,7 @@ use crate::{
     },
     entities::memos,
     error::AppError,
-    repository::MemoRepository,
+    repository::{MemoRepository, TagRepository},
     utils::{sanitize_html, sanitize_optional_html},
 };
 use sea_orm::DatabaseConnection;
@@ -48,9 +48,14 @@ impl MemoService {
             MemoRepository::find_all(&self.db, limit, offset, params.completed, sort_by, order)
                 .await?;
 
-        let memo_dtos: Vec<MemoResponseDto> = memos.into_iter().map(Self::entity_to_dto).collect();
+        // Load tags for each memo
+        let mut memo_dtos = Vec::new();
+        for memo in memos {
+            let tags = TagRepository::get_tags_for_memo(&self.db, memo.id).await?;
+            memo_dtos.push(Self::entity_to_dto_with_tags(memo, tags));
+        }
 
-        tracing::info!(count = memo_dtos.len(), total, "Successfully fetched memos");
+        tracing::info!(count = memo_dtos.len(), total, "Successfully fetched memos with tags");
 
         Ok(PaginatedResponse::new(memo_dtos, total, limit, offset))
     }
@@ -63,19 +68,26 @@ impl MemoService {
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Memo with id {} not found", id)))?;
 
+        // Load tags
+        let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
+
         tracing::info!("Memo found successfully");
 
-        Ok(Self::entity_to_dto(memo))
+        Ok(Self::entity_to_dto_with_tags(memo, tags))
     }
 
-    #[tracing::instrument(skip(self, dto), fields(has_description = dto.description.is_some()))]
+    #[tracing::instrument(skip(self, dto), fields(has_description = dto.description.is_some(), tag_count = dto.tags.len()))]
     pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, AppError> {
         dto.validate()?;
 
         let sanitized_title = sanitize_html(&dto.title);
         let sanitized_description = sanitize_optional_html(dto.description.as_deref());
 
-        tracing::debug!(title = %sanitized_title, "Creating new memo with sanitized input");
+        tracing::debug!(
+            title = %sanitized_title,
+            tag_count = dto.tags.len(),
+            "Creating new memo with sanitized input"
+        );
 
         let memo = MemoRepository::create(
             &self.db,
@@ -85,12 +97,28 @@ impl MemoService {
         )
         .await?;
 
-        tracing::info!(memo_id = %memo.id, "Memo created successfully");
+        // Handle tags if provided
+        if !dto.tags.is_empty() {
+            let mut tag_ids = Vec::new();
+            for tag_name in &dto.tags {
+                let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
+                tag_ids.push(tag.id);
+            }
 
-        Ok(Self::entity_to_dto(memo))
+            TagRepository::assign_tags_to_memo(&self.db, memo.id, tag_ids).await?;
+
+            tracing::debug!(memo_id = %memo.id, tag_count = dto.tags.len(), "Tags assigned to memo");
+        }
+
+        tracing::info!(memo_id = %memo.id, "Memo created successfully with tags");
+
+        // Load tags for response
+        let tags = TagRepository::get_tags_for_memo(&self.db, memo.id).await?;
+
+        Ok(Self::entity_to_dto_with_tags(memo, tags))
     }
 
-    #[tracing::instrument(skip(self, dto), fields(memo_id = %id, has_description = dto.description.is_some()))]
+    #[tracing::instrument(skip(self, dto), fields(memo_id = %id, has_description = dto.description.is_some(), tag_count = dto.tags.len()))]
     pub async fn update_memo(
         &self,
         id: Uuid,
@@ -119,9 +147,28 @@ impl MemoService {
             _ => AppError::Database(e),
         })?;
 
-        tracing::info!(memo_id = %memo.id, "Memo updated successfully");
+        // Update tags: remove all existing and add new ones
+        TagRepository::remove_all_tags_from_memo(&self.db, id).await?;
 
-        Ok(Self::entity_to_dto(memo))
+        if !dto.tags.is_empty() {
+            let mut tag_ids = Vec::new();
+            for tag_name in &dto.tags {
+                let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
+                tag_ids.push(tag.id);
+            }
+
+            TagRepository::assign_tags_to_memo(&self.db, id, tag_ids).await?;
+        }
+
+        // Clean up unused tags
+        TagRepository::delete_unused_tags(&self.db).await?;
+
+        tracing::info!(memo_id = %memo.id, "Memo updated successfully with tags");
+
+        // Load tags for response
+        let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
+
+        Ok(Self::entity_to_dto_with_tags(memo, tags))
     }
 
     #[tracing::instrument(skip(self, dto), fields(memo_id = %id))]
@@ -154,9 +201,32 @@ impl MemoService {
         let memo =
             MemoRepository::update(&self.db, id, title, description, date_to, completed).await?;
 
+        // Update tags if provided
+        if let Some(new_tags) = dto.tags {
+            TagRepository::remove_all_tags_from_memo(&self.db, id).await?;
+
+            if !new_tags.is_empty() {
+                let mut tag_ids = Vec::new();
+                for tag_name in &new_tags {
+                    let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
+                    tag_ids.push(tag.id);
+                }
+
+                TagRepository::assign_tags_to_memo(&self.db, id, tag_ids).await?;
+            }
+
+            // Clean up unused tags
+            TagRepository::delete_unused_tags(&self.db).await?;
+
+            tracing::debug!(memo_id = %memo.id, "Tags updated during patch");
+        }
+
         tracing::info!(memo_id = %memo.id, "Memo patched successfully");
 
-        Ok(Self::entity_to_dto(memo))
+        // Load tags for response
+        let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
+
+        Ok(Self::entity_to_dto_with_tags(memo, tags))
     }
 
     #[tracing::instrument(skip(self), fields(memo_id = %id))]
@@ -170,7 +240,10 @@ impl MemoService {
             return Err(AppError::NotFound(format!("Memo with id {} not found", id)));
         }
 
-        tracing::info!("Memo deleted successfully");
+        // Clean up unused tags after deletion
+        TagRepository::delete_unused_tags(&self.db).await?;
+
+        tracing::info!("Memo deleted successfully, cleaned up unused tags");
 
         Ok(())
     }
@@ -201,7 +274,10 @@ impl MemoService {
             "Memo completion status toggled"
         );
 
-        Ok(Self::entity_to_dto(memo))
+        // Load tags
+        let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
+
+        Ok(Self::entity_to_dto_with_tags(memo, tags))
     }
 
     /// Creates multiple memos in a single transaction
@@ -319,6 +395,19 @@ impl MemoService {
         Ok(total_deleted)
     }
 
+    fn entity_to_dto_with_tags(entity: memos::Model, tags: Vec<String>) -> MemoResponseDto {
+        MemoResponseDto {
+            id: entity.id,
+            title: entity.title,
+            description: entity.description,
+            date_to: entity.date_to.into(),
+            completed: entity.completed,
+            created_at: entity.created_at.into(),
+            updated_at: entity.updated_at.into(),
+            tags,
+        }
+    }
+
     fn entity_to_dto(entity: memos::Model) -> MemoResponseDto {
         MemoResponseDto {
             id: entity.id,
@@ -328,7 +417,7 @@ impl MemoService {
             completed: entity.completed,
             created_at: entity.created_at.into(),
             updated_at: entity.updated_at.into(),
-            tags: Vec::new(), // TODO: Load tags from database
+            tags: Vec::new(), // Used for batch operations where tags aren't loaded
         }
     }
 }
