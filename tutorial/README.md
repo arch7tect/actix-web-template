@@ -22,22 +22,47 @@ A complete memo management application featuring:
 
 ## Tutorial Structure
 
-The tutorial currently ships with eight chapters that guide you from environment setup through the service layer. Each chapter follows the structure defined in `TUTORIAL_TEMPLATE.md` and should be completed sequentially.
+The tutorial currently ships with eighteen chapters (0-17) that guide you from environment setup through a complete production-ready application with observability. Each chapter builds on previous concepts and should be completed sequentially.
 
-### Published Chapters
+### Part 1: Foundation (Chapters 0-4)
 
-- **[Chapter 0: Prerequisites and Environment Setup](chapter-00.md)** - Prepare your tooling, database, and project workspace.
-- **[Chapter 1: Core Application Setup](chapter-01.md)** - Create the baseline Actix Web application and project skeleton.
-- **[Chapter 2: Database Integration with SeaORM](chapter-02.md)** - Connect to PostgreSQL and configure SeaORM.
-- **[Chapter 3: Error Handling and Middleware](chapter-03.md)** - Centralize error responses and add essential middleware.
-- **[Chapter 4: Enhanced Health Checks and Readiness Probes](chapter-04.md)** - Build robust health and readiness endpoints.
-- **[Chapter 5: Data Transfer Objects and Validation](chapter-05.md)** - Define DTOs and enforce request validation.
-- **[Chapter 6: Repository Layer - Database Operations](chapter-06.md)** - Encapsulate database logic in the repository layer.
-- **[Chapter 7: Service Layer - Business Logic and Transactions](chapter-07.md)** - Implement business logic and transactional workflows.
+- **[Chapter 0: Prerequisites and Environment Setup](chapter-00.md)** - Prepare your tooling, database, and project workspace
+- **[Chapter 1: Core Application Setup](chapter-01.md)** - Create the baseline Actix Web application and project skeleton
+- **[Chapter 2: Database Integration with SeaORM](chapter-02.md)** - Connect to PostgreSQL and configure SeaORM
+- **[Chapter 3: Error Handling and Middleware](chapter-03.md)** - Centralize error responses and add essential middleware
+- **[Chapter 4: Enhanced Health Checks and Readiness Probes](chapter-04.md)** - Build robust health and readiness endpoints
 
-### Roadmap
+### Part 2: Core Architecture (Chapters 5-7)
 
-Future chapters (REST handlers, OpenAPI documentation, web UI, security, testing, deployment, CI/CD, observability, and documentation) are in active development and will be published once each chapter is fully authored. Refer to `TUTORIAL_PLAN.md` for the full roadmap and expected sequencing.
+- **[Chapter 5: Data Transfer Objects and Validation](chapter-05.md)** - Define DTOs and enforce request validation
+- **[Chapter 6: Repository Layer - Database Operations](chapter-06.md)** - Encapsulate database logic in the repository layer
+- **[Chapter 7: Service Layer - Business Logic and Transactions](chapter-07.md)** - Implement business logic and transactional workflows
+
+### Part 3: REST API (Chapters 8-9)
+
+- **[Chapter 8: REST API Handlers](chapter-08.md)** - Build REST endpoints for CRUD operations
+- **[Chapter 9: OpenAPI Documentation](chapter-09.md)** - Auto-generate API documentation with Swagger UI
+
+### Part 4: Web UI (Chapters 10-12)
+
+- **[Chapter 10: Askama Templates - Server-Side Rendering](chapter-10.md)** - Create type-safe HTML templates
+- **[Chapter 11: Static Assets and Styling](chapter-11.md)** - Add CSS and configure static file serving
+- **[Chapter 12: Web Page Handlers - Building the UI](chapter-12.md)** - Implement server-rendered web pages
+
+### Part 5: Security & Quality (Chapters 13-14)
+
+- **[Chapter 13: Security Enhancements](chapter-13.md)** - Add rate limiting, XSS prevention, and security headers
+- **[Chapter 14: Testing Strategy](chapter-14.md)** - Implement comprehensive test coverage
+
+### Part 6: Deployment & Operations (Chapters 15-17)
+
+- **[Chapter 15: Docker Deployment](chapter-15.md)** - Containerize your application with multi-stage builds
+- **[Chapter 16: CI/CD Pipeline](chapter-16.md)** - Automate testing, linting, and releases with GitHub Actions
+- **[Chapter 17: Observability Stack](chapter-17.md)** - Add distributed tracing, metrics, and log aggregation
+
+### Coming Soon
+
+- **Chapter 18: Documentation and Next Steps** - Final architecture documentation and future enhancements
 
 ## How to Use This Tutorial
 
