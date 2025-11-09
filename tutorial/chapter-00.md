@@ -36,7 +36,7 @@ By completing this chapter, you will:
 5. Understand the project structure we'll be building
 6. Verify all tools are working correctly
 
-## What You'll Need
+## Concepts Covered
 
 ### Hardware Requirements
 
@@ -50,7 +50,7 @@ By completing this chapter, you will:
 - Required for downloading Rust toolchain, crates, and Docker images
 - Stable connection recommended for initial setup
 
-## Step-by-Step Setup
+## Step-by-Step Instructions
 
 ### Step 1: Install Rust Toolchain
 
@@ -761,7 +761,7 @@ Should display your environment variables.
 
 ---
 
-## Checkpoint: Verify Your Setup
+## Checkpoint
 
 Run these commands to ensure everything is installed correctly:
 
@@ -944,7 +944,44 @@ cargo install sea-orm-cli --locked
 
 ---
 
-## Understanding Key Concepts
+## Code Review
+
+### Key Design Principles Demonstrated
+- **Reproducibility first**: Every tool is installed via versioned package managers (rustup, Homebrew/apt, cargo), ensuring you and your teammates share identical toolchains.
+- **Security-aware defaults**: HTTPS downloads, least-privilege Docker usage, and environment-specific `.env` values prevent leaking secrets or installing compromised binaries.
+- **Layered environment**: Operating system dependencies, language toolchain, database services, and project scaffolding are brought up in ascending order, mirroring the layered architecture you build in later chapters.
+
+### Architecture Benefits
+- **Predictable onboarding**: Fresh machines can recreate the same environment by following the documented sequence, which keeps future debugging focused on code rather than platform drift.
+- **Isolated configuration**: Tool-specific config files (`.cargo/config.toml`, `.env`, Docker resources) keep responsibilities separated, so rebuilding one layer (e.g., PostgreSQL) never disrupts Rust tooling.
+- **Observability from day one**: Installing `tracing`, `cargo-watch`, and SeaORM CLI early ensures later debugging and migration work happen with the same utilities described throughout the tutorial.
+
+### Complete Environment Structure
+```
+host machine
+├── Rust toolchain (rustup, cargo, rustfmt, clippy)
+├── Database runtime (PostgreSQL via local install or Docker)
+├── SeaORM CLI & sqlx tools for migrations
+├── Supporting tooling (Node/npm for Tailwind, jq, curl, make)
+└── Project workspace (actix-web-template repo + .env files)
+```
+
+## Testing
+
+### Verify Toolchain Installation
+1. Run `rustc --version`, `cargo --version`, `rustfmt --version`, and `clippy-driver --version`. All commands should succeed and report the versions installed earlier in the chapter.
+2. Execute `cargo new sanity-check && cd sanity-check && cargo test` to confirm compilers, standard library, and default tests run on your platform.
+
+### Validate Database Connectivity
+1. Start PostgreSQL (local service or Docker) and run `psql "$DATABASE_URL" -c '\dt'`. If the command prompts for a password or lists tables, the connection string is correct.
+2. Install SeaORM CLI and execute `sea-orm-cli migrate status`. This verifies the CLI binary can talk to the database using your `.env` values.
+
+### Exercise Supporting Tools
+- `cargo watch -q -c -x check` ensures filesystem watchers and incremental builds work.
+- `docker compose up db` confirms Docker Desktop/Engine can pull and run the official Postgres image.
+- `node -v && npm -v` (optional but recommended) guarantees the future static-asset chapters have the tooling they require.
+
+## Reference Concepts
 
 Before moving to Chapter 1, let's clarify some important concepts:
 

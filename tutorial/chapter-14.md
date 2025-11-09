@@ -1873,6 +1873,66 @@ let title = format!("Test {}", uuid::Uuid::new_v4());
    fn get_api_client() -> MockClient { /* ... */ }
    ```
 
+## Code Review
+
+### Key Design Principles Demonstrated
+- **Test pyramid discipline**: The chapter enforces fast unit tests at the base, targeted integration tests in the middle, and full-stack web/UI tests at the top so failures pinpoint the correct layer.
+- **Deterministic fixtures**: Shared helpers in `tests/common/` centralize database seeding, ensuring every test case starts from a known state and leaves the database clean.
+- **Environment parity**: `.env.test`, Dockerized PostgreSQL, and the same migrations used in production keep test environments identical to real deployments.
+
+### Architecture Benefits
+- **Confidence to refactor**: Because each architectural layer (DTOs, services, repositories, handlers) has its own suite, regressions surface immediately where they originate.
+- **Faster debugging**: Standardized naming (`api_tests`, `service_tests`, etc.) and focused `cargo test --test ...` commands reduce the time from red test to fix.
+- **Operational readiness**: Coverage reporting (`cargo llvm-cov`) and serial/parallel execution modes mirror what CI/CD will run, eliminating “works on my machine” gaps.
+
+### Complete Testing Structure
+```
+tests/
+├── common/
+│   ├── fixtures.rs      # Reusable memo builders, DB helpers
+│   └── mod.rs
+├── api_tests.rs        # REST endpoints via Actix test server
+├── web_tests.rs        # HTML handlers + template rendering
+├── service_tests.rs    # Business logic with mocked dependencies
+├── repository_tests.rs # Real database CRUD + pagination
+└── observability_tests.rs (optional) # Tracing/metrics guards
+
+src/
+└── **/*_tests mod      # Co-located unit tests for utilities
+```
+
+## Testing
+
+### 1. Run the Entire Suite
+```bash
+cargo test
+```
+Loads `.env.test`, spins up the Actix test server for integration suites, and exercises all unit tests. Use this command locally before every commit.
+
+### 2. Targeted Suites by Layer
+```bash
+cargo test --lib                    # Unit tests only
+cargo test --test repository_tests  # Database + SeaORM coverage
+cargo test --test service_tests     # Business logic workflows
+cargo test --test api_tests         # REST endpoints & middleware
+cargo test --test web_tests         # SSR handlers + forms
+```
+Running selective suites speeds up iteration and keeps failures scoped to the layer you’re editing.
+
+### 3. Serial vs Parallel Execution
+For tests that mutate the same database tables, force single-threaded execution:
+```bash
+cargo test -- --test-threads=1
+```
+Use this mode in CI or when diagnosing nondeterministic behavior.
+
+### 4. Coverage Reporting
+```bash
+cargo llvm-cov --workspace --html
+open target/llvm-cov/html/index.html
+```
+Inspect the HTML report to identify untouched modules (look for 0% lines) and prioritize new tests there.
+
 ## Summary
 
 You've established a comprehensive testing strategy for your Actix Web application:

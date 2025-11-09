@@ -1178,6 +1178,36 @@ txn.commit().await?; // Data saved to disk
 
 ---
 
+## Testing
+
+### 1. Dedicated Repository Suite
+Run the focused repository tests against your isolated test database:
+```bash
+cargo test repository_tests
+```
+These cover create/read/update/delete paths, pagination metadata, and filtering logic, ensuring every SeaORM query behaves exactly as documented.
+
+### 2. Transaction Workflows
+Keep a serialized run for transaction-heavy tests so concurrency issues surface immediately:
+```bash
+cargo test test_transaction_batch_create -- --test-threads=1
+```
+Running single-threaded forces the test to exercise commit/rollback logic deterministically.
+
+### 3. Pagination & Filtering Regression Tests
+Use substring filters to re-run only the pagination scenarios when you tweak queries:
+```bash
+cargo test pagination_filtering
+```
+Assertions should validate counts, offsets, and sort orders for multiple parameter combinations.
+
+### 4. Manual Verification Against Test DB
+Inspect the test database after running the suite to ensure cleanup executes:
+```bash
+psql "$TEST_DATABASE_URL" -c "SELECT id, title, completed FROM memos ORDER BY updated_at DESC LIMIT 5"
+```
+Seeing only test data (or an empty result) confirms fixtures don't leak into development databases.
+
 ## Summary
 
 Congratulations! You've built a complete repository layer. You now have:

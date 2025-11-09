@@ -804,6 +804,39 @@ pub struct PaginatedResponse<T> {
 }
 ```
 
+## Testing
+
+### 1. DTO Validation Unit Tests
+Add focused tests under `tests/dto_validation.rs` (or reuse the existing module) and run:
+```bash
+cargo test dto_validation
+```
+Cover at least:
+- Title length boundaries (0, 1, 200, 201 characters)
+- Optional description limits
+- Invalid `date_to` strings raising parsing errors
+
+### 2. Serialization/Deserialization Round Trip
+Ensure serde attributes behave as expected:
+```bash
+cargo test dto_serialization
+```
+Tests should serialize `MemoResponseDto`, deserialize back into structs, and assert equality—this protects against field renames or missing `#[serde(skip_serializing_if = "Option::is_none")]` annotations.
+
+### 3. Pagination Helper Tests
+`PaginatedResponse`’s helper methods are pure functions, so test them without the database:
+```bash
+cargo test pagination::tests
+```
+Verify `total_pages` math, boundary cases (empty result sets), and default page sizes.
+
+### 4. Integration Smoke Test
+Run the API tests that hit DTO-backed endpoints:
+```bash
+cargo test --test api_tests dto
+```
+This ensures handlers validate input, map errors to HTTP responses, and serialize DTOs exactly as documented.
+
 ## Understanding Validation Flow
 
 ```

@@ -1409,6 +1409,34 @@ SeaORM inspects the database schema and generates:
 
 ---
 
+## Testing
+
+### Migration Round-Trip
+1. Ensure `DATABASE_URL` is exported (or sourced from `.env`): `source .env`.
+2. Recreate the schema from scratch:
+   ```bash
+   sea-orm-cli migrate refresh -u "$DATABASE_URL"
+   ```
+3. Inspect the status table:
+   ```bash
+   sea-orm-cli migrate status -u "$DATABASE_URL"
+   ```
+   All migrations should appear as `Applied`, confirming both `up` and `down` paths work.
+
+### Migration Crate Smoke Test
+Run the workspace binary exactly as CI will:
+```bash
+cargo run -p migration -- fresh
+```
+This validates the migration crate builds, SeaORM runtime features are correct, and the database accepts the connection options from `Settings`.
+
+### Connectivity Probe
+Use psql (or any SQL client) to verify the memos table exists:
+```bash
+psql "$DATABASE_URL" -c "\\d+ memos"
+```
+If the schema prints successfully, the connection pool settings and credentials configured earlier are ready for the repository layer.
+
 ## Summary
 
 Congratulations! You've integrated PostgreSQL with your Actix Web application. You now have:

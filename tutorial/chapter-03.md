@@ -1126,7 +1126,7 @@ HttpServer::new(move || {
 })
 ```
 
-## Testing Error Handling
+## Testing
 
 Create a simple test to verify error handling:
 

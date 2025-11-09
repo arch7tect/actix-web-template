@@ -990,7 +990,7 @@ pub async fn readiness(state: web::Data<AppState>) -> impl Responder {
 
 ---
 
-## Testing Health Checks
+## Testing
 
 Create tests to verify health check behavior:
 
