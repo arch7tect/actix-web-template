@@ -8,19 +8,24 @@ Docker provides consistent deployment across environments and simplifies the pro
 
 ## Prerequisites
 
-- Completed Chapters 0-14
-- Docker installed (version 20.10+)
-- Docker Compose installed (version 2.0+)
-- Basic understanding of containers and Docker concepts
+### Completed Chapters
+- Chapters 0-14: Full application, security hardening, and test suite
 
-**Check your Docker installation:**
+### Required Knowledge
+- Container fundamentals (images, layers, networks, volumes)
+- Basic command-line proficiency with Docker CLI
+- Understanding of environment variables and secrets from prior chapters
+
+### Required Software
+- Docker Engine 20.10 or newer
+- Docker Compose v2.0 or newer (bundled with recent Docker Desktop)
+- Access to a terminal capable of running shell scripts
+
+**Verify installation:**
 
 ```bash
-docker --version
-# Docker version 24.0.0 or later
-
-docker-compose --version
-# Docker Compose version v2.0.0 or later
+docker --version          # Expect Docker version 24.x or newer
+docker compose version    # Expect Docker Compose version v2.x
 ```
 
 ## Learning Objectives
@@ -1041,7 +1046,36 @@ ports:
   - "3738:3737"  # Use different host port
 ```
 
-## Testing Docker Deployment
+## Code Review
+
+### Key Design Principles Demonstrated
+- **Multi-stage builds** keep compilation tooling out of the runtime image, shrinking attack surface while preserving reproducible builds.
+- **Container-first configuration** (env files, health checks, volumes) mirrors the twelve-factor principles established earlier, so deploying to Docker requires no code changes.
+- **Fail-fast orchestration**: Compose depends_on + health check wiring ensure Postgres is healthy before the app boots, preventing race conditions or manual sequencing.
+
+### Architecture Benefits
+- **Portable deployments**: The exact same `docker-compose.yml` runs locally, in CI, or on a VM, eliminating “works on my machine” drift.
+- **Operational visibility**: Health checks, structured logs, and named volumes/logical service boundaries make it trivial to debug or replace individual services.
+- **Secure supply chain**: Pinning base images and copying only the compiled binaries reduces exposure to outdated build tooling and secret leakage.
+
+### Complete Deployment Structure
+```
+docker-compose.yml
+├── services
+│   ├── app
+│   │   ├── image: actix-web-template (multi-stage build output)
+│   │   ├── ports: 3737:3737
+│   │   ├── depends_on: postgres (condition: service_healthy)
+│   │   └── volumes: ./static, ./templates (read-only)
+│   └── postgres
+│       ├── image: postgres:16
+│       ├── volumes: postgres_data:/var/lib/postgresql/data
+│       └── healthcheck: pg_isready
+└── volumes
+    └── postgres_data
+```
+
+## Testing
 
 Write tests to verify Docker deployment works correctly.
 

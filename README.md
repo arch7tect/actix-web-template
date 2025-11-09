@@ -21,7 +21,7 @@ A production-ready web application built with Rust and Actix Web for managing me
 
 Learn by building this application from scratch with our comprehensive 18-chapter tutorial.
 
-**Completed: Chapters 0-15** | **Estimated time:** 15-23 hours total
+**Completed: Chapters 0-16** | **Estimated time:** 15-23 hours total
 
 ### Part 1: Foundation (Chapters 0-4)
 
@@ -56,7 +56,7 @@ Learn by building this application from scratch with our comprehensive 18-chapte
 ### Part 6: Deployment & Operations (Chapters 15-18)
 
 - [Chapter 15: Docker Deployment](tutorial/chapter-15.md)
-- Chapter 16: CI/CD Pipeline *(coming soon)*
+- [Chapter 16: CI/CD Pipeline](tutorial/chapter-16.md)
 - Chapter 17: Observability Stack *(coming soon)*
 - Chapter 18: Documentation and Next Steps *(coming soon)*
 
