@@ -64,7 +64,7 @@ Learn by building this application from scratch with our comprehensive 18-chapte
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/arch7tect/actix-web-template.git
 cd actix-web-template
 
 # Run with Docker Compose
