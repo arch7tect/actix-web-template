@@ -272,12 +272,12 @@ impl MemoService {
         // Commit the transaction - all inserts succeed or all fail
         txn.commit().await.map_err(AppError::Database)?;
 
-        tracing::info!(count = created_memos.len(), "Successfully created memos in batch");
+        tracing::info!(
+            count = created_memos.len(),
+            "Successfully created memos in batch"
+        );
 
-        Ok(created_memos
-            .into_iter()
-            .map(Self::entity_to_dto)
-            .collect())
+        Ok(created_memos.into_iter().map(Self::entity_to_dto).collect())
     }
 
     /// Deletes multiple memos in a single transaction

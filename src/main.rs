@@ -1,11 +1,6 @@
 use actix_cors::Cors;
 use actix_governor::{Governor, GovernorConfigBuilder};
-use actix_web::{
-    App, HttpServer,
-    middleware::Compress,
-    web,
-};
-use tracing_actix_web::TracingLogger;
+use actix_web::{App, HttpServer, middleware::Compress, web};
 use actix_web_prom::PrometheusMetricsBuilder;
 use actix_web_template::{
     config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders,
@@ -13,6 +8,7 @@ use actix_web_template::{
 };
 use sea_orm::{ConnectOptions, Database};
 use std::time::Duration;
+use tracing_actix_web::TracingLogger;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 

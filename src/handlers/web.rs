@@ -65,7 +65,9 @@ pub async fn index(state: web::Data<AppState>) -> Result<HttpResponse, AppError>
     let template = IndexTemplate { memos: result.data };
 
     match template.render() {
-        Ok(html) => Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)),
+        Ok(html) => Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render index template");
             Err(AppError::Internal("Failed to render template".to_string()))
@@ -87,7 +89,9 @@ pub async fn get_memos_list(
     let template = MemoListTemplate { memos: result.data };
 
     match template.render() {
-        Ok(html) => Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)),
+        Ok(html) => Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo list template");
             Err(AppError::Internal("Failed to render template".to_string()))
@@ -102,7 +106,9 @@ pub async fn get_new_memo_form() -> Result<HttpResponse, AppError> {
     let template = MemoFormTemplate { memo: None };
 
     match template.render() {
-        Ok(html) => Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)),
+        Ok(html) => Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo form template");
             Err(AppError::Internal("Failed to render template".to_string()))
@@ -143,7 +149,9 @@ pub async fn create_memo_web(
     let template = MemoListTemplate { memos: result.data };
 
     match template.render() {
-        Ok(html) => Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)),
+        Ok(html) => Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo list template");
             Err(AppError::Internal("Failed to render template".to_string()))
@@ -165,7 +173,9 @@ pub async fn get_edit_memo_form(
     let template = MemoFormTemplate { memo: Some(memo) };
 
     match template.render() {
-        Ok(html) => Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)),
+        Ok(html) => Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo form template");
             Err(AppError::Internal("Failed to render template".to_string()))
@@ -208,7 +218,9 @@ pub async fn update_memo_web(
     let template = MemoItemTemplate { memo };
 
     match template.render() {
-        Ok(html) => Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)),
+        Ok(html) => Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo item template");
             Err(AppError::Internal("Failed to render template".to_string()))
@@ -244,7 +256,9 @@ pub async fn toggle_memo_complete_web(
     let template = MemoItemTemplate { memo };
 
     match template.render() {
-        Ok(html) => Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(html)),
+        Ok(html) => Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)),
         Err(err) => {
             tracing::error!(error = ?err, "Failed to render memo item template");
             Err(AppError::Internal("Failed to render template".to_string()))
