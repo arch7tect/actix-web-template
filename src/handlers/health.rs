@@ -1,6 +1,8 @@
 use crate::{error::AppError, state::AppState};
 use actix_web::{HttpResponse, Result, get, web};
 use serde::Serialize;
+use std::time::Duration;
+use tokio::time::timeout;
 use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]
@@ -32,9 +34,16 @@ pub struct ReadyResponse {
 #[get("/health")]
 #[tracing::instrument(name = "GET /health", skip(state))]
 pub async fn health(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
-    let db_status = match state.db.ping().await {
-        Ok(_) => "connected",
-        Err(_) => "disconnected",
+    // Check database with 500ms timeout
+    let db_check = timeout(Duration::from_millis(500), state.db.ping()).await;
+
+    let db_status = match db_check {
+        Ok(Ok(_)) => "connected",
+        Ok(Err(_)) => "disconnected",
+        Err(_) => {
+            tracing::warn!("Database health check timeout after 500ms");
+            "timeout"
+        }
     };
 
     tracing::debug!(
@@ -65,7 +74,15 @@ pub async fn health(state: web::Data<AppState>) -> Result<HttpResponse, AppError
 #[get("/ready")]
 #[tracing::instrument(name = "GET /ready", skip(state))]
 pub async fn ready(state: web::Data<AppState>) -> Result<HttpResponse, AppError> {
-    let is_ready = state.db.ping().await.is_ok();
+    // Check database with 500ms timeout
+    let db_check = timeout(Duration::from_millis(500), state.db.ping()).await;
+    let is_ready = matches!(db_check, Ok(Ok(_)));
+
+    if !is_ready {
+        if let Err(_) = db_check {
+            tracing::warn!("Database readiness check timeout after 500ms");
+        }
+    }
 
     tracing::debug!(ready = is_ready, "Readiness check performed");
 

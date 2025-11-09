@@ -165,11 +165,12 @@ You have two options: native installation or Docker. We recommend Docker for eas
 2. **Install Docker Compose**:
    - Included with Docker Desktop on macOS/Windows
    - Linux: Follow [Docker Compose installation](https://docs.docker.com/compose/install/)
+   - Note: Use `docker compose` (plugin, no dash) not `docker-compose` (standalone)
 
 3. **Verify Docker installation**:
    ```bash
    docker --version
-   docker-compose --version
+   docker compose version
    ```
 
    Expected output:
@@ -334,7 +335,162 @@ cargo watch --version
 
 We'll cover setup for popular editors. Choose the one you prefer.
 
-#### Visual Studio Code (Recommended)
+#### Zed (Recommended for Rust)
+
+**Why**: Zed is a modern, high-performance code editor built in Rust with first-class Rust support, lightning-fast performance, and built-in collaboration features.
+
+**How**:
+
+1. **Install Zed**:
+   - **macOS**: Download from [zed.dev](https://zed.dev) or use Homebrew:
+     ```bash
+     brew install --cask zed
+     ```
+   - **Linux**: Download from [zed.dev](https://zed.dev) or use the install script:
+     ```bash
+     curl -f https://zed.dev/install.sh | sh
+     ```
+   - **Windows**: Not yet officially supported (as of early 2025)
+
+2. **Rust support is built-in**: Zed includes rust-analyzer by default, no extensions needed!
+
+3. **Configure Zed settings** (optional but recommended):
+
+   Press `Cmd+,` (or `Ctrl+,` on Linux) to open settings, or create/edit `~/.config/zed/settings.json`:
+
+   ```json
+   {
+     "theme": "One Dark",
+     "buffer_font_family": "JetBrains Mono",
+     "buffer_font_size": 14,
+     "ui_font_size": 16,
+     "format_on_save": "on",
+     "tab_size": 4,
+     "ensure_final_newline_on_save": true,
+     "remove_trailing_whitespace_on_save": true,
+     "inlay_hints": {
+       "enabled": true,
+       "show_type_hints": true,
+       "show_parameter_hints": true
+     },
+     "lsp": {
+       "rust-analyzer": {
+         "initialization_options": {
+           "checkOnSave": {
+             "command": "clippy"
+           },
+           "cargo": {
+             "features": "all"
+           },
+           "procMacro": {
+             "enable": true
+           }
+         }
+       }
+     },
+     "languages": {
+       "Rust": {
+         "tab_size": 4,
+         "hard_tabs": false,
+         "format_on_save": "on",
+         "formatter": "language_server"
+       },
+       "TOML": {
+         "tab_size": 2,
+         "hard_tabs": false
+       }
+     }
+   }
+   ```
+
+4. **Install recommended fonts** (optional):
+   ```bash
+   # macOS with Homebrew
+   brew tap homebrew/cask-fonts
+   brew install --cask font-jetbrains-mono
+
+   # Or download from https://www.jetbrains.com/lp/mono/
+   ```
+
+5. **Useful Zed keyboard shortcuts**:
+   - `Cmd+P` / `Ctrl+P` - Quick file open
+   - `Cmd+Shift+P` / `Ctrl+Shift+P` - Command palette
+   - `Cmd+B` / `Ctrl+B` - Toggle sidebar
+   - `Cmd+J` / `Ctrl+J` - Toggle terminal
+   - `Cmd+K Cmd+R` / `Ctrl+K Ctrl+R` - Show symbol references
+   - `Cmd+.` / `Ctrl+.` - Code actions (auto-imports, quick fixes)
+   - `F12` - Go to definition
+   - `Shift+F12` - Find all references
+
+6. **Project-specific settings** (optional):
+
+   Create `.zed/settings.json` in your project root:
+   ```json
+   {
+     "lsp": {
+       "rust-analyzer": {
+         "initialization_options": {
+           "checkOnSave": {
+             "command": "clippy",
+             "extraArgs": ["--", "-D", "warnings"]
+           }
+         }
+       }
+     },
+     "formatter": {
+       "external": {
+         "command": "rustfmt",
+         "arguments": ["--edition", "2021"]
+       }
+     }
+   }
+   ```
+
+7. **Verify Zed setup**:
+   - Open your Rust project folder in Zed
+   - Create or open a `.rs` file
+   - You should see:
+     - Syntax highlighting
+     - Inlay type hints (grayed out type annotations)
+     - Code completion when typing
+     - Error squiggles for issues
+     - Hover tooltips with documentation
+
+**Zed Features for Rust Development**:
+
+- **Built-in rust-analyzer**: No extension installation needed
+- **Fast performance**: Native speed, instant startup
+- **Vim mode**: Press `Cmd+K Cmd+V` to toggle Vim keybindings
+- **Integrated terminal**: `Cmd+J` to open, supports splits
+- **Git integration**: Built-in git status, diff view, and blame
+- **Collaborative editing**: Share your editor session with teammates
+- **Multiple cursors**: `Cmd+D` to select next occurrence
+- **Tree-sitter**: Advanced syntax highlighting and code folding
+- **Language server**: Full IDE features (autocomplete, go-to-definition, refactoring)
+
+**Troubleshooting Zed**:
+
+If rust-analyzer isn't working:
+```bash
+# Ensure rust-analyzer is in PATH
+which rust-analyzer
+
+# If not found, install via rustup
+rustup component add rust-analyzer
+
+# Check Zed logs
+# Open command palette (Cmd+Shift+P) and type "zed: open logs"
+```
+
+If inlay hints aren't showing:
+- Press `Cmd+Shift+P` and type "editor: toggle inlay hints"
+- Or check settings.json has `"inlay_hints": { "enabled": true }`
+
+**Verify**: Open a Rust file and you should see syntax highlighting, inlay type hints, code completion, and error diagnostics.
+
+---
+
+#### Visual Studio Code
 
 **Why**: Excellent Rust support, integrated terminal, and extensive plugin ecosystem.
 
@@ -540,7 +696,9 @@ actix-web-template/
 │   ├── service_tests.rs
 │   └── web_tests.rs
 │
-├── .env.example             # Example environment variables
+├── .env.example             # Example environment variables (development)
+├── .env.test                # Test environment (created in Chapter 6, auto-loaded by cargo test)
+├── .env.production          # Production environment template
 ├── .gitignore
 ├── Cargo.toml               # Project dependencies
 ├── Dockerfile
@@ -839,17 +997,17 @@ Congratulations! You've completed the environment setup. You now have:
 - Docker provides consistent, isolated development environments
 - The layered architecture (handlers → services → repositories → entities) keeps code organized
 
-### What's Next
+## Next Steps
 
-In **Chapter 1: Core Application Setup**, we'll:
-- Create a new Rust project with Cargo
-- Set up the basic Actix Web server
-- Implement configuration loading from environment variables
-- Create application state
-- Build our first HTTP endpoint
-- Test the server is running
+### Required: Chapter 1 - Core Application Setup
 
----
+You'll scaffold the Actix Web application, wire in the configuration you prepared here, and stand up the first health check endpoint. Expect to translate your environment work into a running HTTP server.
+
+### Optional Exercises
+
+1. **Challenge**: Automate loading your `.env` file with a tool like `direnv` or VS Code's tasks.
+2. **Challenge**: Write a small shell script that verifies the versions of Rust, cargo, SeaORM CLI, and PostgreSQL.
+3. **Challenge**: Customize `docker-compose.yml` to expose PostgreSQL metrics or change the default database name.
 
 ## Additional Resources
 

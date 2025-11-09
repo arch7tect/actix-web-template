@@ -204,6 +204,121 @@ impl MemoService {
         Ok(Self::entity_to_dto(memo))
     }
 
+    /// Creates multiple memos in a single transaction
+    ///
+    /// This demonstrates transaction coordination at the service layer.
+    /// All memos are created atomically - if any fail, all are rolled back.
+    ///
+    /// # Arguments
+    /// * `dtos` - Vector of memo creation DTOs
+    ///
+    /// # Returns
+    /// Vector of created memos as DTOs
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// # use actix_web_template::services::MemoService;
+    /// # use actix_web_template::dto::CreateMemoDto;
+    /// # async fn example(service: MemoService, dto1: CreateMemoDto, dto2: CreateMemoDto, dto3: CreateMemoDto) -> Result<(), Box<dyn std::error::Error>> {
+    /// let memos = vec![dto1, dto2, dto3];
+    /// let created = service.create_memos_batch(memos).await?;
+    /// // Either all 3 are created, or none are
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[tracing::instrument(skip(self, dtos), fields(count = dtos.len()))]
+    pub async fn create_memos_batch(
+        &self,
+        dtos: Vec<CreateMemoDto>,
+    ) -> Result<Vec<MemoResponseDto>, AppError> {
+        use sea_orm::{ActiveModelTrait, ActiveValue, Set, TransactionTrait};
+
+        tracing::debug!(count = dtos.len(), "Creating memos in batch transaction");
+
+        // Validate all DTOs before starting transaction
+        for dto in &dtos {
+            dto.validate()?;
+        }
+
+        // Start a transaction
+        let txn = self.db.begin().await.map_err(AppError::Database)?;
+
+        let mut created_memos = Vec::new();
+
+        // Create all memos within the transaction
+        for dto in dtos {
+            let sanitized_title = sanitize_html(&dto.title);
+            let sanitized_description = sanitize_optional_html(dto.description.as_deref());
+
+            let active_model = memos::ActiveModel {
+                id: ActiveValue::NotSet,
+                title: Set(sanitized_title),
+                description: Set(sanitized_description),
+                date_to: Set(dto.date_to.into()),
+                completed: Set(false),
+                created_at: ActiveValue::NotSet,
+                updated_at: ActiveValue::NotSet,
+            };
+
+            // Insert within transaction
+            let memo = active_model
+                .insert(&txn)
+                .await
+                .map_err(AppError::Database)?;
+
+            created_memos.push(memo);
+        }
+
+        // Commit the transaction - all inserts succeed or all fail
+        txn.commit().await.map_err(AppError::Database)?;
+
+        tracing::info!(count = created_memos.len(), "Successfully created memos in batch");
+
+        Ok(created_memos
+            .into_iter()
+            .map(Self::entity_to_dto)
+            .collect())
+    }
+
+    /// Deletes multiple memos in a single transaction
+    ///
+    /// All deletions happen atomically - if any fail, all are rolled back.
+    ///
+    /// # Arguments
+    /// * `ids` - Vector of memo UUIDs to delete
+    ///
+    /// # Returns
+    /// Number of memos deleted
+    #[tracing::instrument(skip(self), fields(count = ids.len()))]
+    pub async fn delete_memos_batch(&self, ids: Vec<Uuid>) -> Result<u64, AppError> {
+        use crate::entities::prelude::Memos;
+        use sea_orm::{EntityTrait, TransactionTrait};
+
+        tracing::debug!(count = ids.len(), "Deleting memos in batch transaction");
+
+        // Start transaction
+        let txn = self.db.begin().await.map_err(AppError::Database)?;
+
+        let mut total_deleted = 0u64;
+
+        // Delete all memos in transaction
+        for id in ids {
+            let result = Memos::delete_by_id(id)
+                .exec(&txn)
+                .await
+                .map_err(AppError::Database)?;
+
+            total_deleted += result.rows_affected;
+        }
+
+        // Commit transaction
+        txn.commit().await.map_err(AppError::Database)?;
+
+        tracing::info!(count = total_deleted, "Successfully deleted memos in batch");
+
+        Ok(total_deleted)
+    }
+
     fn entity_to_dto(entity: memos::Model) -> MemoResponseDto {
         MemoResponseDto {
             id: entity.id,

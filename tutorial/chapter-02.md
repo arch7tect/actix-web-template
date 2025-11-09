@@ -73,6 +73,243 @@ Connection pools maintain multiple database connections to:
 - **Resource Management**: Limit total connections to avoid overwhelming the database
 - **Auto-Recovery**: Reconnect if connections are lost
 
+## PostgreSQL Setup with Docker Compose
+
+Before we begin integrating the database, let's ensure PostgreSQL is properly set up. While Chapter 0 covered basic Docker setup, here we'll create a production-ready Docker Compose configuration.
+
+### Why Docker Compose?
+
+Docker Compose provides:
+- **Reproducible environments** - Same setup across all developers
+- **Easy management** - Start/stop services with simple commands
+- **Volume persistence** - Data survives container restarts
+- **Health checks** - Ensures database is ready before app starts
+- **Network isolation** - Services communicate on private network
+
+### Create docker-compose.yml
+
+Create a `docker-compose.yml` file in your project root:
+
+```yaml
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: actix-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: memos_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+```
+
+**Note**: Modern Docker Compose (v2+) doesn't require the `version` field - it's automatically inferred. We're using `docker compose` (without dash) which is the newer plugin-based CLI.
+
+**Configuration explained**:
+- `postgres:16-alpine` - Lightweight PostgreSQL 16 image
+- `container_name` - Easy to reference (e.g., `docker logs actix-postgres`)
+- `restart: unless-stopped` - Auto-restart on crash (except manual stop)
+- `environment` - Database credentials (override with .env for production)
+- `ports` - Expose 5432 to host machine
+- `volumes` - Persist data and run initialization scripts
+- `healthcheck` - Verify database is ready to accept connections
+
+### Optional: Create Initialization Scripts
+
+Create `init-scripts/` directory for scripts that run on first startup:
+
+```bash
+mkdir -p init-scripts
+```
+
+Create `init-scripts/01-create-extensions.sql`:
+
+```sql
+-- Enable UUID generation extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Enable full-text search (useful for search features)
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+```
+
+These extensions provide:
+- `uuid-ossp`: Generate UUIDs directly in PostgreSQL (alternative to Rust-side generation)
+- `pg_trgm`: Trigram-based text search for fuzzy matching
+
+### Start PostgreSQL
+
+```bash
+# Start PostgreSQL in detached mode (background)
+docker compose up -d postgres
+
+# View logs to verify startup
+docker compose logs -f postgres
+```
+
+**Expected output**:
+```
+[+] Running 2/2
+ ✔ Network actix-web-template_default    Created
+ ✔ Container actix-postgres              Started
+```
+
+### Verify PostgreSQL is Running
+
+```bash
+# Check container status
+docker compose ps
+
+# Expected output:
+# NAME              IMAGE                 STATUS          PORTS
+# actix-postgres    postgres:16-alpine    Up 10 seconds   0.0.0.0:5432->5432/tcp
+
+# Check health status
+docker inspect actix-postgres --format='{{.State.Health.Status}}'
+# Expected output: healthy
+```
+
+### Test Database Connection
+
+```bash
+# Connect to database
+docker compose exec postgres psql -U postgres -d memos_db
+
+# You should see:
+# psql (16.x)
+# Type "help" for help.
+# 
+# memos_db=#
+
+# Test query
+# Type in psql: SELECT version();
+# Then: \q to exit
+```
+
+### Common Docker Compose Commands
+
+```bash
+# Start services
+docker compose up -d
+
+# Stop services (keeps data)
+docker compose stop
+
+# Stop and remove containers (keeps data volumes)
+docker compose down
+
+# Stop and REMOVE EVERYTHING including data
+docker compose down -v
+
+# View logs
+docker compose logs -f postgres
+
+# View last 100 lines
+docker compose logs --tail=100 postgres
+
+# Restart PostgreSQL
+docker compose restart postgres
+
+# Execute SQL command
+docker compose exec postgres psql -U postgres -d memos_db -c "SELECT version();"
+
+# Backup database
+docker compose exec -T postgres pg_dump -U postgres memos_db > backup.sql
+
+# Restore from backup
+docker compose exec -T postgres psql -U postgres -d memos_db < backup.sql
+```
+
+### Troubleshooting Docker Setup
+
+**Issue: Port 5432 already in use**
+
+```bash
+# Check what's using port 5432
+lsof -i :5432
+# OR
+netstat -an | grep 5432
+
+# Option 1: Stop conflicting service
+# On macOS with Homebrew PostgreSQL
+brew services stop postgresql@16
+
+# On Linux with systemd
+sudo systemctl stop postgresql
+
+# Option 2: Use different port in docker-compose.yml
+# Change ports to:
+ports:
+  - "5433:5432"
+
+# Then update DATABASE_URL in .env:
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/memos_db
+```
+
+**Issue: Container won't start**
+
+```bash
+# Check logs for errors
+docker compose logs postgres
+
+# Remove and recreate container
+docker compose down
+docker compose up -d postgres
+
+# If data is corrupted, remove volume (DESTROYS DATA)
+docker compose down -v
+docker volume rm actix-web-template_postgres_data
+docker compose up -d postgres
+```
+
+**Issue: Connection refused from application**
+
+```bash
+# Verify PostgreSQL is listening
+docker compose exec postgres pg_isready -U postgres
+
+# Check if port is exposed
+docker compose port postgres 5432
+
+# Verify .env DATABASE_URL matches docker compose config
+cat .env | grep DATABASE_URL
+```
+
+### Update Your .env File
+
+Ensure your `.env` file has the correct DATABASE_URL:
+
+```bash
+# Database Configuration
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/memos_db
+DATABASE_MAX_CONNECTIONS=10
+DATABASE_MIN_CONNECTIONS=2
+DATABASE_CONNECT_TIMEOUT=30
+DATABASE_IDLE_TIMEOUT=600
+```
+
+**Note**: When running the app in Docker alongside PostgreSQL (we'll do this later), change `localhost` to `postgres` (the service name):
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/memos_db
+```
+
+---
+
+Now that PostgreSQL is running, let's integrate it with our application!
+
 ## Step-by-Step Instructions
 
 ### Step 1: Add Database Dependencies
@@ -86,18 +323,18 @@ Connection pools maintain multiple database connections to:
 ```toml
 [package]
 name = "actix-memo-app"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.1"
+edition = "2024"
 
 [dependencies]
 # Web framework
-actix-web = "4.4"
+actix-web = "4"
 
 # Async runtime
-tokio = { version = "1.35", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.47", features = ["full"] }
 
 # Database - SeaORM
-sea-orm = { version = "1.0", features = [
+sea-orm = { version = "1.1", features = [
     "sqlx-postgres",
     "runtime-tokio-rustls",
     "macros",
@@ -112,13 +349,13 @@ dotenvy = "0.15"
 
 # Logging and tracing
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
 
 # UUID support
-uuid = { version = "1.6", features = ["v4", "serde"] }
+uuid = { version = "1.18", features = ["v4", "serde"] }
 
 [profile.release]
 opt-level = 3
@@ -162,7 +399,7 @@ Should complete without errors.
 [package]
 name = "migration"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [lib]
@@ -396,24 +633,24 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
-    pub server: ServerSettings,
-    pub app: AppSettings,
-    pub database: DatabaseSettings,
+    pub server: ServerConfig,
+    pub app: AppConfig,
+    pub database: DatabaseConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct ServerSettings {
+pub struct ServerConfig {
     pub host: String,
     pub port: u16,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AppSettings {
+pub struct AppConfig {
     pub env: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct DatabaseSettings {
+pub struct DatabaseConfig {
     pub url: String,
     pub max_connections: u32,
     pub min_connections: u32,
@@ -423,23 +660,23 @@ pub struct DatabaseSettings {
 
 impl Settings {
     /// Load settings from environment variables
-    pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
         // Load .env file if it exists
-        let _ = dotenvy::dotenv();
+        dotenvy::dotenv().ok();
 
         let settings = Settings {
-            server: ServerSettings {
+            server: ServerConfig {
                 host: std::env::var("SERVER_HOST")
                     .unwrap_or_else(|_| "127.0.0.1".to_string()),
                 port: std::env::var("SERVER_PORT")
                     .unwrap_or_else(|_| "3737".to_string())
                     .parse()?,
             },
-            app: AppSettings {
+            app: AppConfig {
                 env: std::env::var("APP_ENV")
                     .unwrap_or_else(|_| "development".to_string()),
             },
-            database: DatabaseSettings {
+            database: DatabaseConfig {
                 url: std::env::var("DATABASE_URL")
                     .expect("DATABASE_URL must be set"),
                 max_connections: std::env::var("DATABASE_MAX_CONNECTIONS")
@@ -717,7 +954,7 @@ use serde_json::json;
 /// Health check endpoint with database connectivity check
 ///
 /// Returns JSON with status "ok" and database status
-#[tracing::instrument(skip(db))]
+#[tracing::instrument(skip(db))]  // Skip 'db' - it can't be logged/serialized
 pub async fn health_check(db: web::Data<DatabaseConnection>) -> impl Responder {
     tracing::info!("Health check requested");
 
@@ -782,7 +1019,8 @@ mod handlers;
 mod state;
 mod utils;
 
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{web, App, HttpServer};
+use tracing_actix_web::TracingLogger;
 use config::Settings;
 use state::AppState;
 use std::io;
@@ -795,7 +1033,7 @@ async fn main() -> io::Result<()> {
     tracing::info!("Starting Actix Memo Application");
 
     // Load configuration from environment
-    let settings = Settings::from_env()
+    let settings = Settings::load()
         .expect("Failed to load settings");
 
     tracing::info!(
@@ -831,7 +1069,7 @@ async fn main() -> io::Result<()> {
             // Share database connection separately for convenience
             .app_data(web::Data::new(db.clone()))
             // Add request logging middleware
-            .wrap(Logger::default())
+            .wrap(TracingLogger::default())
             // Register routes
             .route("/health", web::get().to(handlers::health::health_check))
             .route("/ready", web::get().to(handlers::health::ready))
@@ -1083,87 +1321,39 @@ cargo update sea-orm-migration
 cargo clean
 cargo build
 ```
-
----
-
 ## Code Review
 
-Let's review the key components we've built:
+### Key Design Principles Demonstrated
+- **Isolated database configuration** keeps connection options alongside other environment-driven settings in `Settings`.
+- **Migration-first workflow** captures schema evolution in timestamped files, ensuring reproducibility across environments.
+- **Generated entities** give a type-safe representation of each table without scattering raw SQL across the codebase.
+- **Instrumented pooling** enables SQL logging during development, shortening the feedback loop when diagnosing queries.
 
-### Database Connection Setup
+### Architecture Benefits
+- **Operational reliability**: Connection pooling with sensible timeouts shields PostgreSQL from bursts and surfaces failures quickly.
+- **Auditable change history**: The ordered migrations directory documents every schema change with clear rollback paths.
+- **Layered data access**: Application code touches the database through `DatabaseConnection`, paving the way for repositories and services to build on top.
 
+### Complete Database Integration Structure
 ```rust
 pub async fn establish_connection(settings: &Settings) -> Result<DatabaseConnection, DbErr> {
     let mut opt = ConnectOptions::new(&settings.database.url);
-
     opt.max_connections(settings.database.max_connections)
         .min_connections(settings.database.min_connections)
-        .connect_timeout(Duration::from_secs(settings.database.connect_timeout))
-        .idle_timeout(Duration::from_secs(settings.database.idle_timeout))
-        .sqlx_logging(true)
+        // ... existing pooling and timeout configuration ...
         .sqlx_logging_level(log::LevelFilter::Debug);
 
-    let db = Database::connect(opt).await?;
-    Ok(db)
+    Database::connect(opt).await
 }
 ```
 
-**Key points**:
-- `ConnectOptions` configures the connection pool
-- `max_connections` limits total connections to database
-- `min_connections` keeps connections warm for low-latency requests
-- `connect_timeout` prevents hanging on connection issues
-- `idle_timeout` closes unused connections to free resources
-- `sqlx_logging` enables query logging for debugging
-
-### Migration Structure
-
-```rust
-async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-    manager
-        .create_table(
-            Table::create()
-                .table(Memos::Table)
-                .if_not_exists()
-                .col(/* ... */)
-                .to_owned(),
-        )
-        .await?;
-
-    // Create indexes
-    manager.create_index(/* ... */).await?;
-
-    Ok(())
-}
+```text
+migration/
+  ├─ 20240101000000_create_memos_table.rs  // up/down schema changes + indexes
+  └─ seaql_migrations/                     // migration runtime support
+entity/
+  └─ memo.rs                               // Generated model and relation metadata
 ```
-
-**Key points**:
-- `up()` applies the migration (schema changes)
-- `down()` rolls back the migration (drops table)
-- `if_not_exists()` makes migrations idempotent
-- Indexes created for frequently queried columns
-- Each migration is a separate file with timestamp
-
-### Entity Model
-
-```rust
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "memos")]
-pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Uuid,
-    pub title: String,
-    pub description: Option<String>,
-    // ...
-}
-```
-
-**Key points**:
-- `DeriveEntityModel` generates ORM boilerplate
-- Derives `Serialize`/`Deserialize` for JSON conversion
-- `Option<String>` for nullable database columns
-- Type-safe representation of database rows
-- Can add custom methods and business logic
 
 ---
 
@@ -1272,22 +1462,17 @@ Congratulations! You've integrated PostgreSQL with your Actix Web application. Y
 
 ---
 
-## What's Next
+## Next Steps
 
-In **Chapter 3: Error Handling and Middleware**, we'll:
-- Create a centralized error handling system
-- Implement custom error types with HTTP status mapping
-- Add security headers middleware
-- Configure CORS for cross-origin requests
-- Set up compression middleware (Gzip, Brotli)
-- Handle database errors gracefully
+### Required: Chapter 3 - Error Handling and Middleware
 
-You'll learn how to:
-- Design error types with enums
-- Convert errors with the `From` trait
-- Map errors to HTTP status codes
-- Create custom middleware
-- Apply middleware globally and per-route
+You'll introduce a typed error system, map failures to HTTP responses, and layer in middleware for security, compression, and observability. Expect to thread database errors through the new error types so your persistence layer cooperates with handlers.
+
+### Optional Exercises
+
+1. **Challenge**: Add a migration for a `tags` table and generate the corresponding entity.
+2. **Challenge**: Experiment with different `max_connections` values in the connection pool and record the impact on startup logs.
+3. **Challenge**: Write a small Rust binary that seeds a few memo rows using the SeaORM entities you generated.
 
 ---
 

@@ -175,11 +175,11 @@ Validator provides declarative validation rules via derive macros. Supports comm
 
 ---
 
-#### Tracing
-**What it is**: Application-level structured logging and diagnostics.
+#### Tracing + tracing-actix-web
+**What it is**: Application-level structured logging and diagnostics with Actix Web integration.
 
 **Technical description**:
-Tracing provides structured, contextual logging with support for spans (operations) and events. It's designed for async applications and integrates with OpenTelemetry for distributed tracing.
+Tracing provides structured, contextual logging with support for spans (operations) and events. It's designed for async applications and integrates with OpenTelemetry for distributed tracing. The `tracing-actix-web` crate integrates HTTP request logging into the tracing span hierarchy.
 
 **Why we chose it**:
 - **Structured logging**: Key-value pairs, not string concatenation
@@ -189,11 +189,14 @@ Tracing provides structured, contextual logging with support for spans (operatio
 - **Ecosystem integration**: Works with Jaeger, Prometheus, etc.
 - **Flexible output**: JSON, pretty console, or custom formats
 - **Industry standard**: Used throughout Rust async ecosystem
+- **HTTP integration**: `tracing-actix-web` creates spans for each HTTP request automatically
+- **Production-ready**: Better than simple `Logger` middleware for observability
 
 **Alternatives considered**:
 - **log crate**: Simpler but unstructured, no span support
 - **slog**: Good but more complex setup, less async-friendly
 - **println!/dbg!**: Not production-suitable, no log levels
+- **Logger middleware** (actix-web): Simple HTTP logging but no tracing integration
 
 ---
 
@@ -388,6 +391,8 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 - Application state pattern
 - Basic routing and handlers
 - Settings management
+- Structured logging with tracing
+- TracingLogger middleware for HTTP request logging
 
 **Technical focus**:
 - Actix Web's factory pattern for App creation
@@ -395,13 +400,17 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 - Type-safe configuration structs
 - Environment variable loading and validation
 - Server binding and worker configuration
+- **Production-ready logging**: Using `tracing-actix-web` (TracingLogger) instead of simple Logger
+- Integration of HTTP request logging with tracing spans
 
 **Deliverables**:
 - Running web server on port 3737
 - Configuration loaded from .env file
 - Basic health check endpoint
 - Application state with settings
+- **TracingLogger middleware** integrated for structured HTTP logging
 - Understanding of Actix Web request lifecycle
+- Understanding why TracingLogger is preferred over Logger middleware
 
 ---
 
@@ -670,7 +679,7 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 
 ---
 
-### Part 4: Web UI (Chapters 10-11)
+### Part 4: Web UI (Chapters 10-12)
 
 #### Chapter 10: Askama Templates - Server-Side Rendering
 **What you'll build**: HTML templates with type-safe rendering
@@ -705,7 +714,40 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 
 ---
 
-#### Chapter 11: Web Page Handlers - Building the UI
+#### Chapter 11: Static Assets and Styling
+**What you'll build**: CSS styling and static file serving
+
+**Key concepts**:
+- Static file serving in Actix
+- CSS organization and best practices
+- Responsive design with mobile-first approach
+- Modern CSS features
+- Asset optimization
+
+**Technical focus**:
+- actix-files configuration (without `.show_files_listing()` for security)
+- Static file routes and cache headers
+- CSS custom properties (variables)
+- Flexbox layouts for responsive design
+- Media queries for mobile/tablet/desktop
+- CSS animations and transitions
+- Accessibility features (focus states, .sr-only)
+- Print styles
+- Modern CSS architecture (ITCSS approach)
+
+**Deliverables**:
+- static/css/style.css with complete app styling (~570 lines)
+- CSS variables for theming
+- Responsive design for mobile/desktop
+- Static file serving configured securely (no directory listing)
+- Animations and hover effects
+- Accessibility features implemented
+- Print-friendly styles
+- Clean, maintainable CSS with component organization
+
+---
+
+#### Chapter 12: Web Page Handlers - Building the UI
 **What you'll build**: Server-rendered web pages with progressive enhancement
 
 **Key concepts**:
@@ -713,59 +755,36 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 - HTML form handling
 - Progressive enhancement with vanilla JS
 - Client-side interactivity without framework
+- Form data extraction and validation
 
 **Technical focus**:
-- Actix Web HTML responses
-- Template rendering in handlers
-- Form submission handling (POST, PUT, DELETE)
-- Form validation and error display
-- Redirect after post pattern
+- Actix Web HTML responses with proper content-type (`text/html; charset=utf-8`)
+- Template rendering in handlers with error handling
+- Form structs separate from DTOs (WebCreateMemoForm, WebUpdateMemoForm)
+- HTML form data extraction with web::Form<T>
+- DateTime parsing from HTML datetime-local format
+- Checkbox handling (Option<String> to bool conversion)
+- Form validation with validator crate
+- Redirect after post pattern (for traditional forms)
+- Manual tracing with `tracing::debug!()` (TracingLogger already logs HTTP)
 - Vanilla JavaScript for AJAX calls
 - Fetch API for REST communication
 - DOM manipulation without jQuery
 - Event delegation for dynamic content
 
 **Deliverables**:
-- GET / (homepage with memo list)
-- GET /memos/new (create form)
-- POST /memos (handle creation)
-- GET /memos/{id} (memo detail)
-- GET /memos/{id}/edit (edit form)
-- PUT /memos/{id} (handle update)
-- DELETE /memos/{id} (handle deletion)
-- POST /memos/{id}/toggle (toggle complete)
-- JavaScript for delete confirmation
-- AJAX updates without page reload
+- GET / (homepage with styled memo list)
+- GET /web/memos (memo list fragment for AJAX)
+- GET /web/memos/new (new memo form)
+- POST /web/memos (create memo, return updated list)
+- GET /web/memos/{id}/edit (edit memo form)
+- PUT /web/memos/{id} (update memo, return updated item)
+- DELETE /web/memos/{id} (delete memo)
+- PATCH /web/memos/{id}/toggle (toggle complete, return updated item)
+- JavaScript for modal display and AJAX
+- Full pages vs partial fragments pattern
 - Integration tests for web handlers
-
----
-
-### Part 5: Static Assets (Chapter 12)
-
-#### Chapter 12: Static Assets and Styling
-**What you'll build**: CSS styling and static file serving
-
-**Key concepts**:
-- Static file serving in Actix
-- CSS organization
-- Responsive design basics
-- Asset optimization
-
-**Technical focus**:
-- actix-files configuration
-- Static file routes
-- Cache headers for assets
-- CSS structure and naming
-- Responsive layouts with flexbox/grid
-- Modern CSS features (custom properties, etc.)
-- Asset compression in production
-
-**Deliverables**:
-- static/css/style.css with app styling
-- Responsive design for mobile/desktop
-- Static file serving configured
-- Cache headers for performance
-- Clean, maintainable CSS
+- Beautiful styled UI with CSS from Chapter 11
 
 ---
 
@@ -907,15 +926,22 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 ### Part 9: Observability (Chapter 17)
 
 #### Chapter 17: Observability Stack
-**What you'll build**: Distributed tracing and metrics monitoring
+**What you'll build**: Distributed tracing and metrics monitoring with production-grade logging
 
 **Key concepts**:
 - Observability pillars (traces, metrics, logs)
 - Distributed tracing
 - Metrics collection and visualization
 - Dashboard creation
+- Unified HTTP and application tracing
 
 **Technical focus**:
+- **Enhancing tracing-actix-web with OpenTelemetry**:
+  - Request ID generation and propagation (building on TracingLogger from Chapter 1)
+  - HTTP requests already captured as tracing spans via TracingLogger
+  - Adding OpenTelemetry for distributed tracing export
+  - Context propagation across service boundaries
+  - Jaeger integration for trace visualization
 - OpenTelemetry SDK integration
 - Tracing instrumentation with macros
 - Span creation and context propagation
@@ -928,9 +954,18 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 - Query language (PromQL)
 - Trace visualization and analysis
 
+**Building on Previous Chapters**:
+- **TracingLogger** (from Chapter 1): Already provides HTTP request spans and structured logging
+- **Chapter 17 adds**: OpenTelemetry exporters, request IDs, Jaeger/Prometheus integration
+- **Production-ready from start**: Tutorial uses `tracing-actix-web` throughout, not `Logger`
+- This chapter completes the observability stack by adding visualization and metrics
+
 **Deliverables**:
+- **Request ID middleware** added to TracingLogger
+- Request IDs visible in all logs and traces
 - OpenTelemetry integrated in app
 - Traces exported to Jaeger
+- HTTP requests appear in Jaeger trace hierarchy
 - Jaeger UI accessible
 - Metrics exported to Prometheus
 - Prometheus scraping app metrics
@@ -939,7 +974,8 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
   - Error rates
   - Database query performance
   - System metrics (CPU, memory)
-- Docker Compose with full stack
+  - Request ID tracking
+- Docker Compose with full stack (app, Jaeger, Prometheus, Grafana)
 - End-to-end observability working
 
 ---
@@ -1078,8 +1114,8 @@ actix-web-template/
 │   ├── chapter-08.md                # REST API handlers
 │   ├── chapter-09.md                # OpenAPI docs
 │   ├── chapter-10.md                # Askama templates
-│   ├── chapter-11.md                # Web handlers
-│   ├── chapter-12.md                # Static assets
+│   ├── chapter-11.md                # Static assets and styling
+│   ├── chapter-12.md                # Web handlers
 │   ├── chapter-13.md                # Security
 │   ├── chapter-14.md                # Testing
 │   ├── chapter-15.md                # Docker deployment
@@ -1110,14 +1146,14 @@ By the end of this tutorial, students will have:
 - **Foundation (Chapters 0-4)**: 2-3 hours
 - **Architecture (Chapters 5-7)**: 2-3 hours
 - **API Development (Chapters 8-9)**: 2-3 hours
-- **Web UI (Chapters 10-12)**: 2-3 hours
+- **Web UI (Chapters 10-12)**: 3-4 hours
 - **Security & Testing (Chapters 13-14)**: 2-3 hours
 - **Deployment (Chapter 15)**: 1-2 hours
 - **CI/CD (Chapter 16)**: 1-2 hours
 - **Observability (Chapter 17)**: 1-2 hours
 - **Documentation (Chapter 18)**: 1 hour
 
-**Total**: 14-21 hours (varies by experience level)
+**Total**: 15-23 hours (varies by experience level)
 
 ---
 

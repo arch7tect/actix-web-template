@@ -2,9 +2,10 @@ use actix_cors::Cors;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{
     App, HttpServer,
-    middleware::{Compress, Logger},
+    middleware::Compress,
     web,
 };
+use tracing_actix_web::TracingLogger;
 use actix_web_prom::PrometheusMetricsBuilder;
 use actix_web_template::{
     config::Settings, docs::ApiDoc, handlers, middleware::SecurityHeaders,
@@ -100,8 +101,8 @@ async fn main() -> anyhow::Result<()> {
             .wrap(SecurityHeaders)
             .wrap(rate_limiter)
             .wrap(cors)
-            .wrap(Logger::default())
-            .service(actix_files::Files::new("/static", "./static").show_files_listing())
+            .wrap(TracingLogger::default())
+            .service(actix_files::Files::new("/static", "./static"))
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )

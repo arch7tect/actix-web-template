@@ -301,3 +301,162 @@ async fn test_pagination() {
         service.delete_memo(id).await.ok();
     }
 }
+
+#[tokio::test]
+async fn test_create_memo_with_sanitization() {
+    let service = setup_test_service().await;
+
+    // Create memo with XSS attempt
+    let create_dto = CreateMemoDto {
+        title: "<script>alert('xss')</script>Test Memo".to_string(),
+        description: Some("<img src=x onerror=alert('xss')>Description".to_string()),
+        date_to: Utc::now(),
+    };
+
+    let result = service.create_memo(create_dto).await;
+    assert!(result.is_ok());
+
+    let memo = result.unwrap();
+
+    // Verify XSS was sanitized
+    assert!(!memo.title.contains("<script>"));
+    assert_eq!(memo.title, "Test Memo");
+
+    if let Some(desc) = &memo.description {
+        assert!(!desc.contains("onerror"));
+    }
+
+    // Cleanup
+    service.delete_memo(memo.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_update_memo_sanitizes_input() {
+    let service = setup_test_service().await;
+
+    // Create a memo first
+    let create_dto = CreateMemoDto {
+        title: "Original".to_string(),
+        description: None,
+        date_to: Utc::now(),
+    };
+
+    let created = service.create_memo(create_dto).await.unwrap();
+
+    // Update with malicious content
+    let update_dto = UpdateMemoDto {
+        title: "<script>bad()</script>Updated".to_string(),
+        description: Some("Safe description".to_string()),
+        date_to: Utc::now(),
+        completed: false,
+    };
+
+    let updated = service.update_memo(created.id, update_dto).await.unwrap();
+
+    // Verify sanitization
+    assert!(!updated.title.contains("<script>"));
+    assert_eq!(updated.title, "Updated");
+
+    // Cleanup
+    service.delete_memo(created.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_create_memos_batch_transaction() {
+    let service = setup_test_service().await;
+
+    // Create multiple memos in batch
+    let dtos = vec![
+        CreateMemoDto {
+            title: "Batch 1".to_string(),
+            description: Some("First in batch".to_string()),
+            date_to: Utc::now(),
+        },
+        CreateMemoDto {
+            title: "Batch 2".to_string(),
+            description: Some("Second in batch".to_string()),
+            date_to: Utc::now(),
+        },
+        CreateMemoDto {
+            title: "Batch 3".to_string(),
+            description: Some("Third in batch".to_string()),
+            date_to: Utc::now(),
+        },
+    ];
+
+    let result = service.create_memos_batch(dtos).await;
+    assert!(result.is_ok());
+
+    let created = result.unwrap();
+    assert_eq!(created.len(), 3);
+
+    // Verify all were created
+    for memo in &created {
+        let fetched = service.get_memo_by_id(memo.id).await;
+        assert!(fetched.is_ok());
+    }
+
+    // Cleanup - delete in batch
+    let ids: Vec<_> = created.iter().map(|m| m.id).collect();
+    let deleted_count = service.delete_memos_batch(ids).await.unwrap();
+    assert_eq!(deleted_count, 3);
+}
+
+#[tokio::test]
+async fn test_delete_memos_batch_transaction() {
+    let service = setup_test_service().await;
+
+    // Create several memos individually
+    let mut ids = Vec::new();
+    for i in 1..=5 {
+        let dto = CreateMemoDto {
+            title: format!("Batch Delete {}", i),
+            description: None,
+            date_to: Utc::now(),
+        };
+        let created = service.create_memo(dto).await.unwrap();
+        ids.push(created.id);
+    }
+
+    // Delete all in batch
+    let deleted_count = service.delete_memos_batch(ids.clone()).await.unwrap();
+    assert_eq!(deleted_count, 5);
+
+    // Verify all are deleted
+    for id in ids {
+        let result = service.get_memo_by_id(id).await;
+        assert!(result.is_err());
+    }
+}
+
+#[tokio::test]
+async fn test_batch_create_with_validation_error() {
+    let service = setup_test_service().await;
+
+    // Create batch with one invalid memo (empty title)
+    let dtos = vec![
+        CreateMemoDto {
+            title: "Valid Memo 1".to_string(),
+            description: None,
+            date_to: Utc::now(),
+        },
+        CreateMemoDto {
+            title: "".to_string(), // Invalid - empty title
+            description: None,
+            date_to: Utc::now(),
+        },
+        CreateMemoDto {
+            title: "Valid Memo 2".to_string(),
+            description: None,
+            date_to: Utc::now(),
+        },
+    ];
+
+    // Should fail due to validation error
+    let result = service.create_memos_batch(dtos).await;
+    assert!(result.is_err());
+
+    // Verify transaction rolled back - no memos should be created
+    // (Would need to check by ID or timestamp if we stored them,
+    // but validation happens before transaction)
+}

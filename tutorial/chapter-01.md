@@ -8,6 +8,15 @@ By the end of this chapter, you'll have a running web server that responds to HT
 
 > **Note on Tutorial Approach**: This tutorial builds the application incrementally, starting simple and adding features chapter by chapter. The actual codebase in this repository is already at Stage 18 (fully production-ready) with advanced features like OpenTelemetry tracing, Prometheus metrics, rate limiting, and comprehensive security. Each chapter will note where the tutorial code differs from the production implementation, allowing you to learn concepts step-by-step while seeing how they're applied in a real production system.
 
+> **Production vs Tutorial**: The production code in this repo uses:
+> - Project name: `actix-web-template` (tutorial uses `actix-memo-app` for learning)
+> - OpenTelemetry distributed tracing (added in Chapter 17)
+> - Prometheus metrics (added in Chapter 17)
+> - Enhanced configuration with validation
+> - Multiple config structs (ServerConfig, DatabaseConfig, etc.)
+>
+> **You can follow the tutorial with `actix-memo-app` or use `actix-web-template` to match the production code exactly.**
+
 ## Prerequisites
 
 ### Completed
@@ -140,15 +149,15 @@ Should compile and print "Hello, world!"
 ```toml
 [package]
 name = "actix-memo-app"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.1"
+edition = "2024"
 
 [dependencies]
 # Web framework
-actix-web = "4.4"
+actix-web = "4"
 
 # Async runtime
-tokio = { version = "1.35", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.47", features = ["full"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -159,7 +168,8 @@ dotenvy = "0.15"
 
 # Logging and tracing
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-actix-web = "0.7"
 
 [profile.release]
 opt-level = 3
@@ -250,36 +260,36 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
-    pub server: ServerSettings,
-    pub app: AppSettings,
+    pub server: ServerConfig,
+    pub app: AppConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct ServerSettings {
+pub struct ServerConfig {
     pub host: String,
     pub port: u16,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AppSettings {
+pub struct AppConfig {
     pub env: String,
 }
 
 impl Settings {
     /// Load settings from environment variables
-    pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
         // Load .env file if it exists
-        let _ = dotenvy::dotenv();
+        dotenvy::dotenv().ok();
 
         let settings = Settings {
-            server: ServerSettings {
+            server: ServerConfig {
                 host: std::env::var("SERVER_HOST")
                     .unwrap_or_else(|_| "127.0.0.1".to_string()),
                 port: std::env::var("SERVER_PORT")
                     .unwrap_or_else(|_| "3737".to_string())
                     .parse()?,
             },
-            app: AppSettings {
+            app: AppConfig {
                 env: std::env::var("APP_ENV")
                     .unwrap_or_else(|_| "development".to_string()),
             },
@@ -386,6 +396,52 @@ Should compile without errors.
 
 **How**:
 
+#### Understanding Tracing Instrumentation
+
+Before we write the handler, let's understand the `#[tracing::instrument]` attribute we'll use:
+
+**What is `#[tracing::instrument]`?**
+
+This is a procedural macro that automatically instruments your function for observability:
+
+1. **Creates a span** - A span represents a unit of work with a start and end time
+2. **Captures function arguments** - Automatically logs input parameters for debugging
+3. **Tracks timing** - Measures how long the function takes to execute
+4. **Provides context** - Enables distributed tracing across service boundaries
+
+**What it does under the hood**:
+
+```rust
+// When you write this:
+#[tracing::instrument]
+pub async fn health_check() -> impl Responder {
+    // your code
+}
+
+// It roughly expands to this:
+pub async fn health_check() -> impl Responder {
+    let span = tracing::span!(tracing::Level::INFO, "health_check");
+    let _enter = span.enter();  // Enters the span
+    // your code
+    // Span automatically exits when _enter is dropped
+}
+```
+
+**Benefits**:
+- Zero-cost abstraction (compiled away in release mode if not used)
+- Automatic function name in logs
+- Structured logging with context
+- Essential for debugging in production
+- Enables distributed tracing (covered in Chapter 17)
+
+**Common parameters**:
+- `#[tracing::instrument]` - Default: log everything
+- `#[tracing::instrument(skip(db))]` - Skip logging the `db` parameter (can't be serialized)
+- `#[tracing::instrument(level = "debug")]` - Use debug level instead of info
+- `#[tracing::instrument(name = "custom_name")]` - Override span name
+
+Now let's use it in our handler:
+
 1. **Create `src/handlers/health.rs`**:
 
 ```rust
@@ -405,6 +461,12 @@ pub async fn health_check() -> impl Responder {
     }))
 }
 ```
+
+**What this does**:
+- `#[tracing::instrument]` creates a span named "health_check"
+- When the function is called, you'll see logs showing entry, any logs inside, and exit
+- The `tracing::info!()` macro logs an informational message within the span
+- All logs are structured and can be filtered using `RUST_LOG` environment variable
 
 2. **Create `src/handlers/mod.rs`**:
 
@@ -435,10 +497,11 @@ mod handlers;
 mod state;
 mod utils;
 
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{web, App, HttpServer};
 use config::Settings;
 use state::AppState;
 use std::io;
+use tracing_actix_web::TracingLogger;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
@@ -448,7 +511,7 @@ async fn main() -> io::Result<()> {
     tracing::info!("Starting Actix Memo Application");
 
     // Load configuration from environment
-    let settings = Settings::from_env()
+    let settings = Settings::load()
         .expect("Failed to load settings");
 
     tracing::info!(
@@ -469,8 +532,8 @@ async fn main() -> io::Result<()> {
         App::new()
             // Add application state
             .app_data(web::Data::new(app_state.clone()))
-            // Add request logging middleware
-            .wrap(Logger::default())
+            // Add request logging middleware with tracing integration
+            .wrap(TracingLogger::default())
             // Register routes
             .route("/health", web::get().to(handlers::health::health_check))
             // Welcome route
@@ -486,6 +549,32 @@ async fn welcome() -> impl actix_web::Responder {
     actix_web::HttpResponse::Ok().body("Welcome to Actix Memo App! Try /health")
 }
 ```
+
+**About TracingLogger vs Logger:**
+
+You might notice we're using `TracingLogger` from `tracing-actix-web` instead of the more common `Logger` from `actix_web::middleware`. Here's why:
+
+**Logger (actix_web::middleware::Logger):**
+- Simple HTTP request logging
+- Logs to stdout in a fixed format
+- Not integrated with structured logging
+- Example: `127.0.0.1 "GET /health HTTP/1.1" 200 45 0.000123`
+
+**TracingLogger (tracing-actix-web):**
+- Full integration with the `tracing` ecosystem
+- Structured, contextual logging with spans
+- Each HTTP request becomes a tracing span
+- Captures request ID, method, path, status, duration automatically
+- Works with distributed tracing systems (Jaeger, OpenTelemetry)
+- Consistent with the rest of our application logging
+
+**Why we choose TracingLogger from the start:**
+1. **Unified logging**: Uses the same `tracing` framework we set up for app logs
+2. **Better observability**: HTTP requests appear in trace hierarchies with context
+3. **Production-ready**: What you'd use in real applications
+4. **No migration needed**: Starting right gives you the best foundation
+
+While `Logger` is simpler and fine for tutorials, we're building a production-ready template, so we use `TracingLogger` from day one.
 
 **Verify**:
 ```bash
@@ -711,28 +800,31 @@ cargo build
 
 ## Code Review
 
-Let's review the key components we've built:
+### Key Design Principles Demonstrated
+- **Layered structure** separates configuration (`settings`), state (`app_state`), handlers, and utilities from the outset.
+- **Configuration via environment** keeps runtime concerns (host/port) out of code and supports multiple environments.
+- **Shared application state** uses `web::Data<AppState>` and `Arc` so handlers can safely access configuration and later dependencies.
+- **Observability-first mindset** initializes tracing before any work, ensuring early instrumentation.
 
-### Application Entry Point (main.rs)
+### Architecture Benefits
+- **Extensibility**: The factory closure cleanly adds middleware and routes without touching the bootstrap logic.
+- **Operational readiness**: Health and welcome handlers confirm the server is alive and correctly wired before adding business features.
+- **Testability**: Keeping handlers pure functions that return `impl Responder` makes them trivial to exercise with Actix's test harness.
 
+### Complete Application Structure
 ```rust
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    // 1. Initialize logging
     utils::tracing::init_tracing();
-
-    // 2. Load configuration
-    let settings = Settings::from_env()
-        .expect("Failed to load settings");
-
-    // 3. Create application state
+    let settings = Settings::load().expect("config load failed");
     let app_state = AppState::new(settings.clone());
+    let bind_address = format!("{}:{}", settings.server.host, settings.server.port);
 
-    // 4. Start HTTP server with factory pattern
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(app_state.clone()))
-            .wrap(Logger::default())
+            .wrap(TracingLogger::default())
+            // ... existing middleware and app configuration ...
             .route("/health", web::get().to(handlers::health::health_check))
             .route("/", web::get().to(welcome))
     })
@@ -741,61 +833,6 @@ async fn main() -> io::Result<()> {
     .await
 }
 ```
-
-**Key points**:
-- `#[actix_web::main]` sets up the Tokio async runtime
-- `HttpServer::new` takes a factory closure that creates `App` instances
-- `app_state.clone()` is cheap because AppState contains Arc-wrapped data
-- `.bind()` binds to TCP socket, `.run()` starts the event loop
-
-### Configuration (settings.rs)
-
-Type-safe configuration loading with sensible defaults:
-
-```rust
-pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
-    let _ = dotenvy::dotenv();  // Load .env if it exists
-
-    let settings = Settings {
-        server: ServerSettings {
-            host: std::env::var("SERVER_HOST")
-                .unwrap_or_else(|_| "127.0.0.1".to_string()),
-            // ... defaults for missing vars
-        },
-        // ...
-    };
-
-    Ok(settings)
-}
-```
-
-**Key points**:
-- `dotenvy::dotenv()` loads .env file
-- `unwrap_or_else` provides default values
-- Returns `Result` for error handling
-
-### Handler (health.rs)
-
-Simple async handler returning JSON:
-
-```rust
-#[tracing::instrument]
-pub async fn health_check() -> impl Responder {
-    tracing::info!("Health check requested");
-
-    HttpResponse::Ok().json(json!({
-        "status": "ok",
-        "service": "actix-memo-app"
-    }))
-}
-```
-
-**Key points**:
-- `async fn` for asynchronous execution
-- `#[tracing::instrument]` adds automatic span tracking
-- `impl Responder` allows returning various response types
-- `HttpResponse::Ok()` creates 200 response
-- `.json()` serializes to JSON with proper Content-Type
 
 ---
 
@@ -862,7 +899,7 @@ When a request hits your server, here's what happens:
    ↓
 3. Request routed to App instance
    ↓
-4. Middleware (Logger) processes request
+4. Middleware (TracingLogger) processes request
    ↓
 5. Route matcher finds handler
    ↓
@@ -929,7 +966,7 @@ Congratulations! You've built a working Actix Web application. You now have:
 └─────────────┬───────────────────────┘
               │
 ┌─────────────▼───────────────────────┐
-│  Middleware (Logger)                │
+│  Middleware (TracingLogger)         │
 └─────────────┬───────────────────────┘
               │
 ┌─────────────▼───────────────────────┐
@@ -947,20 +984,17 @@ Congratulations! You've built a working Actix Web application. You now have:
 
 ---
 
-## What's Next
+## Next Steps
 
-In **Chapter 2: Database Integration with SeaORM**, we'll:
-- Add database connection to our application state
-- Create database migrations with SeaORM CLI
-- Generate entity models from database schema
-- Implement connection pooling
-- Verify database connectivity from our app
+### Required: Chapter 2 - Database Integration with SeaORM
 
-You'll learn how to:
-- Work with PostgreSQL using SeaORM
-- Manage schema changes with migrations
-- Configure connection pools for production
-- Handle database errors gracefully
+You'll connect the Actix Web app to PostgreSQL, create migrations, and bootstrap SeaORM entities so the application can persist data. Expect to expand the shared application state with a connection pool and wire database errors into the existing error handling.
+
+### Optional Exercises
+
+1. **Challenge**: Add simple configuration validation that fails fast when required env vars are missing.
+2. **Challenge**: Integrate `tracing-subscriber::fmt()` JSON formatting and observe how structured logs change.
+3. **Challenge**: Set up `cargo watch -x run` so the server hot-reloads during development.
 
 ---
 

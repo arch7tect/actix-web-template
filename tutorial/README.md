@@ -22,44 +22,22 @@ A complete memo management application featuring:
 
 ## Tutorial Structure
 
-This tutorial is organized into 18 chapters, each building on the previous:
+The tutorial currently ships with eight chapters that guide you from environment setup through the service layer. Each chapter follows the structure defined in `TUTORIAL_TEMPLATE.md` and should be completed sequentially.
 
-### Part 1: Foundation
-- **[Chapter 0: Prerequisites and Environment Setup](chapter-00.md)** - Set up your development environment
-- **[Chapter 1: Core Application Setup](chapter-01.md)** - Create a minimal Actix Web server
-- **[Chapter 2: Database Integration](chapter-02.md)** - Connect to PostgreSQL with SeaORM
-- **[Chapter 3: Error Handling and Middleware](chapter-03.md)** - Centralized errors and security
-- **[Chapter 4: Health Checks](chapter-04.md)** - Monitoring endpoints
+### Published Chapters
 
-### Part 2: Core Architecture
-- **[Chapter 5: DTOs and Validation](chapter-05.md)** - Type-safe data transfer objects
-- **[Chapter 6: Repository Layer](chapter-06.md)** - Database access patterns
-- **[Chapter 7: Service Layer](chapter-07.md)** - Business logic layer
+- **[Chapter 0: Prerequisites and Environment Setup](chapter-00.md)** - Prepare your tooling, database, and project workspace.
+- **[Chapter 1: Core Application Setup](chapter-01.md)** - Create the baseline Actix Web application and project skeleton.
+- **[Chapter 2: Database Integration with SeaORM](chapter-02.md)** - Connect to PostgreSQL and configure SeaORM.
+- **[Chapter 3: Error Handling and Middleware](chapter-03.md)** - Centralize error responses and add essential middleware.
+- **[Chapter 4: Enhanced Health Checks and Readiness Probes](chapter-04.md)** - Build robust health and readiness endpoints.
+- **[Chapter 5: Data Transfer Objects and Validation](chapter-05.md)** - Define DTOs and enforce request validation.
+- **[Chapter 6: Repository Layer - Database Operations](chapter-06.md)** - Encapsulate database logic in the repository layer.
+- **[Chapter 7: Service Layer - Business Logic and Transactions](chapter-07.md)** - Implement business logic and transactional workflows.
 
-### Part 3: REST API
-- **[Chapter 8: REST API Handlers](chapter-08.md)** - Complete CRUD endpoints
-- **[Chapter 9: OpenAPI Documentation](chapter-09.md)** - Auto-generated API docs
+### Roadmap
 
-### Part 4: Web UI
-- **[Chapter 10: Askama Templates](chapter-10.md)** - Server-side rendering
-- **[Chapter 11: Web Page Handlers](chapter-11.md)** - HTML endpoints with progressive enhancement
-- **[Chapter 12: Static Assets](chapter-12.md)** - CSS and static file serving
-
-### Part 5: Security and Quality
-- **[Chapter 13: Security Enhancements](chapter-13.md)** - Rate limiting, XSS prevention
-- **[Chapter 14: Testing Strategy](chapter-14.md)** - Comprehensive test coverage
-
-### Part 6: Deployment
-- **[Chapter 15: Docker Deployment](chapter-15.md)** - Containerization and orchestration
-
-### Part 7: CI/CD
-- **[Chapter 16: CI/CD Pipeline](chapter-16.md)** - Automated testing and deployment
-
-### Part 8: Observability
-- **[Chapter 17: Observability Stack](chapter-17.md)** - Tracing and metrics
-
-### Part 9: Documentation
-- **[Chapter 18: Documentation and Next Steps](chapter-18.md)** - Final polish and future enhancements
+Future chapters (REST handlers, OpenAPI documentation, web UI, security, testing, deployment, CI/CD, observability, and documentation) are in active development and will be published once each chapter is fully authored. Refer to `TUTORIAL_PLAN.md` for the full roadmap and expected sequencing.
 
 ## How to Use This Tutorial
 

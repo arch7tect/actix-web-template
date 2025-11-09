@@ -65,7 +65,16 @@ pub enum LogFormat {
 
 impl Settings {
     pub fn load() -> anyhow::Result<Self> {
-        dotenvy::dotenv().ok();
+        // Automatically load .env.test when running tests
+        #[cfg(test)]
+        {
+            dotenvy::from_filename(".env.test").ok();
+        }
+
+        #[cfg(not(test))]
+        {
+            dotenvy::dotenv().ok();
+        }
 
         let server = ServerConfig {
             host: env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
@@ -108,6 +117,7 @@ impl Settings {
             env: match app_env_str.to_lowercase().as_str() {
                 "production" => Environment::Production,
                 "staging" => Environment::Staging,
+                // "test" is treated as development - tests use #[cfg(test)] not runtime checks
                 _ => Environment::Development,
             },
             version: env!("CARGO_PKG_VERSION").to_string(),
