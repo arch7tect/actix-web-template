@@ -86,10 +86,10 @@ pub struct PaginationParams {
 
 impl PaginationParams {
     pub fn validate_order(&self) -> Result<(), String> {
-        if let Some(ref order) = self.order {
-            if order != "asc" && order != "desc" {
-                return Err("Order must be 'asc' or 'desc'".to_string());
-            }
+        if let Some(ref order) = self.order
+            && order != "asc" && order != "desc"
+        {
+            return Err("Order must be 'asc' or 'desc'".to_string());
         }
         Ok(())
     }

@@ -78,10 +78,8 @@ pub async fn ready(state: web::Data<AppState>) -> Result<HttpResponse, AppError>
     let db_check = timeout(Duration::from_millis(500), state.db.ping()).await;
     let is_ready = matches!(db_check, Ok(Ok(_)));
 
-    if !is_ready {
-        if let Err(_) = db_check {
-            tracing::warn!("Database readiness check timeout after 500ms");
-        }
+    if !is_ready && db_check.is_err() {
+        tracing::warn!("Database readiness check timeout after 500ms");
     }
 
     tracing::debug!(ready = is_ready, "Readiness check performed");
