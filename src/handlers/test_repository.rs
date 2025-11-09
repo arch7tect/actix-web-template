@@ -78,7 +78,7 @@ pub async fn test_repository(state: web::Data<AppState>) -> impl Responder {
 
     tracing::debug!("Step 4: Finding all memos");
     let (all_memos, total) =
-        match MemoRepository::find_all(&state.db, 10, 0, None, "created_at", "desc").await {
+        match MemoRepository::find_all(&state.db, 10, 0, None, "created_at", "desc", None).await {
             Ok(result) => {
                 tracing::info!(
                     count = result.0.len(),
@@ -98,7 +98,7 @@ pub async fn test_repository(state: web::Data<AppState>) -> impl Responder {
 
     tracing::debug!("Step 5: Finding completed memos only");
     let (completed_memos, completed_total) =
-        match MemoRepository::find_all(&state.db, 10, 0, Some(true), "created_at", "desc").await {
+        match MemoRepository::find_all(&state.db, 10, 0, Some(true), "created_at", "desc", None).await {
             Ok(result) => {
                 tracing::info!(
                     count = result.0.len(),

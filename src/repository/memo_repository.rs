@@ -1,4 +1,4 @@
-use crate::entities::{memos, prelude::*};
+use crate::entities::{memo_tags, memos, prelude::*, tags};
 use chrono::{DateTime, Utc};
 use sea_orm::*;
 use uuid::Uuid;
@@ -6,7 +6,7 @@ use uuid::Uuid;
 pub struct MemoRepository;
 
 impl MemoRepository {
-    #[tracing::instrument(skip(db), fields(limit, offset, completed, sort_by, order))]
+    #[tracing::instrument(skip(db), fields(limit, offset, completed, sort_by, order, tag_count = tag_names.as_ref().map(|t| t.len())))]
     pub async fn find_all(
         db: &DatabaseConnection,
         limit: u64,
@@ -14,6 +14,7 @@ impl MemoRepository {
         completed: Option<bool>,
         sort_by: &str,
         order: &str,
+        tag_names: Option<Vec<String>>,
     ) -> Result<(Vec<memos::Model>, u64), DbErr> {
         tracing::debug!(
             limit,
@@ -21,6 +22,7 @@ impl MemoRepository {
             completed,
             sort_by,
             order,
+            tag_filter = ?tag_names,
             "Finding all memos with filters"
         );
 
@@ -28,6 +30,36 @@ impl MemoRepository {
 
         if let Some(completed_filter) = completed {
             query = query.filter(memos::Column::Completed.eq(completed_filter));
+        }
+
+        // Filter by tags if provided (OR logic - memo has ANY of the tags)
+        if let Some(ref tags) = tag_names {
+            if !tags.is_empty() {
+                // Find tag IDs for the given tag names
+                let tag_models = Tags::find()
+                    .filter(tags::Column::Name.is_in(tags.clone()))
+                    .all(db)
+                    .await?;
+
+                let tag_ids: Vec<Uuid> = tag_models.iter().map(|t| t.id).collect();
+
+                if !tag_ids.is_empty() {
+                    // Find memo IDs that have any of these tags
+                    let memo_ids: Vec<Uuid> = MemoTags::find()
+                        .filter(memo_tags::Column::TagId.is_in(tag_ids))
+                        .all(db)
+                        .await?
+                        .into_iter()
+                        .map(|mt| mt.memo_id)
+                        .collect();
+
+                    // Filter memos by these IDs
+                    query = query.filter(memos::Column::Id.is_in(memo_ids));
+                } else {
+                    // No matching tags found, return empty result
+                    return Ok((vec![], 0));
+                }
+            }
         }
 
         let sort_column = match sort_by {
@@ -48,7 +80,7 @@ impl MemoRepository {
 
         let memos = query.limit(limit).offset(offset).all(db).await?;
 
-        tracing::info!(found = memos.len(), total, "Successfully retrieved memos");
+        tracing::info!(found = memos.len(), total, "Successfully retrieved memos with tag filter");
 
         Ok((memos, total))
     }

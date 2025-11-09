@@ -44,9 +44,18 @@ impl MemoService {
             "Fetching all memos"
         );
 
-        let (memos, total) =
-            MemoRepository::find_all(&self.db, limit, offset, params.completed, sort_by, order)
-                .await?;
+        let tag_filter = params.parse_tags();
+
+        let (memos, total) = MemoRepository::find_all(
+            &self.db,
+            limit,
+            offset,
+            params.completed,
+            sort_by,
+            order,
+            tag_filter,
+        )
+        .await?;
 
         // Load tags for each memo
         let mut memo_dtos = Vec::new();
