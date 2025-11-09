@@ -100,40 +100,229 @@ HTTP Request (root span)
 
 ## Step-by-Step Instructions
 
-Since the observability stack is **already configured** in your `docker-compose.yml`, this chapter focuses on understanding and using it.
+### Step 1: Add OpenTelemetry Dependencies
 
-### Step 1: Understanding the Observability Stack Configuration
+First, add the observability dependencies to your project.
 
-**Services already configured:**
+**Update `Cargo.toml`:**
 
-1. **Jaeger** - Distributed tracing
-   - Port 16686: Web UI
-   - Port 4317: OTLP gRPC receiver
-   - Port 4318: OTLP HTTP receiver
+Add these dependencies at the end of the `[dependencies]` section:
 
-2. **Prometheus** - Metrics collection
-   - Port 9090: Web UI and API
-   - Scrapes metrics from `/metrics` endpoint
-
-3. **Grafana** - Visualization dashboards
-   - Port 3001: Web UI
-   - Login: admin/admin
-   - Pre-configured with Prometheus and Loki data sources
-
-4. **Loki** - Log aggregation
-   - Port 3100: API
-   - Stores logs for querying in Grafana
-
-**Verify the configuration exists:**
-
-```bash
-# Check docker-compose.yml has observability services
-grep -A 5 "jaeger:\|prometheus:\|grafana:\|loki:" docker-compose.yml
+```toml
+# Observability
+opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "grpc-tonic"] }
+tracing-opentelemetry = "0.32"
+actix-web-prom = "0.10"
+ctrlc = "0.8"
 ```
 
-**Expected:** You should see all four services defined.
+**What each provides:**
+- `opentelemetry`: Core OpenTelemetry API
+- `opentelemetry_sdk`: OpenTelemetry SDK implementation
+- `opentelemetry-otlp`: OTLP exporter (for Jaeger/Prometheus)
+- `tracing-opentelemetry`: Bridge between `tracing` and OpenTelemetry
+- `actix-web-prom`: Prometheus metrics middleware for Actix Web
+- `ctrlc`: Graceful shutdown handling
 
-### Step 2: Start the Observability Stack
+**Update dependencies:**
+
+```bash
+cargo update
+```
+
+This will download the new dependencies (may take 2-3 minutes).
+
+### Step 2: Add Observability Services to Docker Compose
+
+Now add the four observability services to `docker-compose.yml`.
+
+**Update `docker-compose.yml`:**
+
+Add these services after the `app` service (before the `volumes:` section at the end):
+
+```yaml
+  # Observability Stack
+  # Access:
+  # - Jaeger UI: http://localhost:16686
+  # - Prometheus: http://localhost:9090
+  # - Grafana: http://localhost:3001 (admin/admin)
+  # - Metrics: http://localhost:3737/metrics
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    container_name: memos-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      LOG_LEVEL: debug
+
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    container_name: memos-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: memos-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: memos-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+```
+
+**Update the `volumes:` section at the end:**
+
+Add the new volume names:
+
+```yaml
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+```
+
+**Also update the `app` service environment:**
+
+Add the OTLP endpoint so the app knows where to send traces:
+
+```yaml
+  app:
+    # ... existing configuration ...
+    environment:
+      # ... existing variables ...
+      OTLP_ENDPOINT: http://jaeger:4317
+```
+
+### Step 3: Create Prometheus Configuration
+
+Create the Prometheus configuration to scrape metrics from your app.
+
+**Create directory:**
+
+```bash
+mkdir -p observability
+```
+
+**Create `observability/prometheus.yml`:**
+
+```yaml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'actix-web-app'
+    static_configs:
+      - targets: ['app:3737']
+        labels:
+          service: 'memos-app'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+```
+
+**What this does:**
+- Scrapes metrics from `http://app:3737/metrics` every 10 seconds
+- Labels metrics with `service="memos-app"`
+- Stores data in Prometheus time-series database
+
+### Step 4: Create Grafana Provisioning
+
+Set up Grafana datasources (Prometheus, Loki, Jaeger) automatically.
+
+**Create directories:**
+
+```bash
+mkdir -p observability/grafana/provisioning/datasources
+mkdir -p observability/grafana/provisioning/dashboards
+mkdir -p observability/grafana/dashboards
+```
+
+**Create `observability/grafana/provisioning/datasources/datasources.yml`:**
+
+```yaml
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: true
+
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: true
+```
+
+**Create `observability/grafana/provisioning/dashboards/dashboards.yml`:**
+
+```yaml
+apiVersion: 1
+
+providers:
+  - name: 'Default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+```
+
+This tells Grafana to:
+- Connect to Prometheus, Loki, and Jaeger automatically
+- Load dashboards from the dashboards directory
+- Make Prometheus the default datasource
+
+### Step 5: Start the Observability Stack
+
+Now that everything is configured, let's start all the services.
 
 **Start all services:**
 
@@ -172,29 +361,11 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[].labels'
 curl -s http://localhost:3001/api/health | jq
 ```
 
-### Step 3: Understanding Existing Instrumentation
+### Step 6: Understanding Existing Instrumentation
 
-Your application **already has** OpenTelemetry dependencies. Let's understand what's there:
+Your application already uses the `tracing` library (from Chapter 1). Let's understand how it works before adding OpenTelemetry.
 
-**Check `Cargo.toml` dependencies:**
-
-```toml
-# Observability
-opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
-opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "grpc-tonic"] }
-tracing-opentelemetry = "0.32"
-actix-web-prom = "0.10"
-```
-
-**What these provide:**
-- `opentelemetry`: Core API
-- `opentelemetry_sdk`: Implementation
-- `opentelemetry-otlp`: Export to Jaeger/Prometheus
-- `tracing-opentelemetry`: Bridge between `tracing` and OpenTelemetry
-- `actix-web-prom`: Prometheus metrics for Actix Web
-
-**Existing tracing:** Your application uses `tracing` library (from Chapter 1):
+**Existing tracing in your handlers:**
 
 ```rust
 // In handlers (already there)
@@ -206,7 +377,7 @@ pub async fn health(state: web::Data<AppState>) -> Result<HttpResponse, AppError
 
 These `#[tracing::instrument]` macros automatically create spans!
 
-### Step 4: Generate Some Traffic
+### Step 7: Generate Some Traffic
 
 Let's generate traffic to see in our observability tools.
 
@@ -238,7 +409,7 @@ done
 curl -s http://localhost:3737/ > /dev/null
 ```
 
-### Step 5: Exploring Traces in Jaeger
+### Step 8: Exploring Traces in Jaeger
 
 **Open Jaeger UI:**
 
@@ -261,7 +432,7 @@ xdg-open http://localhost:16686
 
 **Note:** If traces aren't showing, you need to add OpenTelemetry initialization (covered in next steps).
 
-### Step 6: Add OpenTelemetry Tracing (Implementation)
+### Step 9: Add OpenTelemetry Tracing (Implementation)
 
 Currently, the app uses `tracing` but doesn't export to Jaeger. Let's fix that.
 
@@ -475,7 +646,7 @@ async fn main() -> anyhow::Result<()> {
 ctrlc = "0.8"
 ```
 
-### Step 7: Verify Tracing Works
+### Step 10: Verify Tracing Works
 
 **Rebuild and restart:**
 
@@ -515,7 +686,7 @@ Open http://localhost:16686 and:
 - Tags and logs
 - Latency breakdown
 
-### Step 8: Understanding Prometheus Metrics
+### Step 11: Understanding Prometheus Metrics
 
 **Access Prometheus:**
 
@@ -545,7 +716,7 @@ db_connections_active
 
 **Note:** The full Prometheus metrics implementation requires `actix-web-prom` middleware setup, which may not be fully configured yet. This is an optional enhancement.
 
-### Step 9: Exploring Grafana Dashboards
+### Step 12: Exploring Grafana Dashboards
 
 **Access Grafana:**
 
@@ -574,7 +745,7 @@ open http://localhost:3001
 5. Set panel title: "Request Rate"
 6. Click "Apply"
 
-### Step 10: Viewing Logs in Loki
+### Step 13: Viewing Logs in Loki
 
 **Loki** aggregates logs from all containers.
 
