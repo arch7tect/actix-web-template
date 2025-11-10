@@ -294,10 +294,10 @@ git push origin v1.0.0
 - Triggers: Release workflow (build binaries + Docker images)
 - Triggers: Deploy workflow to production
 
-**Stage completion tags** (e.g., `stage-19-complete`):
+**Stage completion tags** (e.g., `stage-18-complete`):
 ```bash
-git tag stage-19-complete
-git push origin stage-19-complete
+git tag stage-18-complete
+git push origin stage-18-complete
 ```
 - Triggers: Release workflow (build binaries only)
 

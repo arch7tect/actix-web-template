@@ -455,7 +455,7 @@ let query = format!("SELECT * FROM memos WHERE title = '{}'", user_input);
 
 **OWASP Top 10 (2021) and our mitigations**:
 
-1. **Broken Access Control**: Not implemented yet (Chapter 19: Authentication)
+1. **Broken Access Control**: Not implemented yet (authentication/authorization not included in this tutorial)
 2. **Cryptographic Failures**: HTTPS required (HSTS), passwords hashed (future)
 3. **Injection**: ✓ SQL injection prevented (SeaORM), XSS prevented (sanitization)
 4. **Insecure Design**: ✓ Defense in depth, principle of least privilege
