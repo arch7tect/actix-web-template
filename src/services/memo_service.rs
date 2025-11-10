@@ -87,6 +87,8 @@ impl MemoService {
 
     #[tracing::instrument(skip(self, dto), fields(has_description = dto.description.is_some(), tag_count = dto.tags.len()))]
     pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, AppError> {
+        use sea_orm::TransactionTrait;
+
         dto.validate()?;
 
         let sanitized_title = sanitize_html(&dto.title);
@@ -95,11 +97,14 @@ impl MemoService {
         tracing::debug!(
             title = %sanitized_title,
             tag_count = dto.tags.len(),
-            "Creating new memo with sanitized input"
+            "Creating new memo with sanitized input in transaction"
         );
 
+        // Start a transaction for atomic memo + tags creation
+        let txn = self.db.begin().await.map_err(AppError::Database)?;
+
         let memo = MemoRepository::create(
-            &self.db,
+            &txn,
             sanitized_title,
             sanitized_description,
             dto.date_to,
@@ -110,18 +115,21 @@ impl MemoService {
         if !dto.tags.is_empty() {
             let mut tag_ids = Vec::new();
             for tag_name in &dto.tags {
-                let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
+                let tag = TagRepository::get_or_create(&txn, tag_name.trim().to_string()).await?;
                 tag_ids.push(tag.id);
             }
 
-            TagRepository::assign_tags_to_memo(&self.db, memo.id, tag_ids).await?;
+            TagRepository::assign_tags_to_memo(&txn, memo.id, tag_ids).await?;
 
             tracing::debug!(memo_id = %memo.id, tag_count = dto.tags.len(), "Tags assigned to memo");
         }
 
+        // Commit transaction - all operations succeed or all fail
+        txn.commit().await.map_err(AppError::Database)?;
+
         tracing::info!(memo_id = %memo.id, "Memo created successfully with tags");
 
-        // Load tags for response
+        // Load tags for response (outside transaction)
         let tags = TagRepository::get_tags_for_memo(&self.db, memo.id).await?;
 
         Ok(Self::entity_to_dto_with_tags(memo, tags))
@@ -133,15 +141,20 @@ impl MemoService {
         id: Uuid,
         dto: UpdateMemoDto,
     ) -> Result<MemoResponseDto, AppError> {
+        use sea_orm::TransactionTrait;
+
         dto.validate()?;
 
         let sanitized_title = sanitize_html(&dto.title);
         let sanitized_description = sanitize_optional_html(dto.description.as_deref());
 
-        tracing::debug!("Updating memo with sanitized input");
+        tracing::debug!("Updating memo with sanitized input in transaction");
+
+        // Start a transaction for atomic update + tags replacement
+        let txn = self.db.begin().await.map_err(AppError::Database)?;
 
         let memo = MemoRepository::update(
-            &self.db,
+            &txn,
             id,
             sanitized_title,
             sanitized_description,
@@ -157,24 +170,27 @@ impl MemoService {
         })?;
 
         // Update tags: remove all existing and add new ones
-        TagRepository::remove_all_tags_from_memo(&self.db, id).await?;
+        TagRepository::remove_all_tags_from_memo(&txn, id).await?;
 
         if !dto.tags.is_empty() {
             let mut tag_ids = Vec::new();
             for tag_name in &dto.tags {
-                let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
+                let tag = TagRepository::get_or_create(&txn, tag_name.trim().to_string()).await?;
                 tag_ids.push(tag.id);
             }
 
-            TagRepository::assign_tags_to_memo(&self.db, id, tag_ids).await?;
+            TagRepository::assign_tags_to_memo(&txn, id, tag_ids).await?;
         }
 
         // Clean up unused tags
-        TagRepository::delete_unused_tags(&self.db).await?;
+        TagRepository::delete_unused_tags(&txn).await?;
+
+        // Commit transaction - all operations succeed or all fail
+        txn.commit().await.map_err(AppError::Database)?;
 
         tracing::info!(memo_id = %memo.id, "Memo updated successfully with tags");
 
-        // Load tags for response
+        // Load tags for response (outside transaction)
         let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
 
         Ok(Self::entity_to_dto_with_tags(memo, tags))
@@ -186,6 +202,8 @@ impl MemoService {
         id: Uuid,
         dto: PatchMemoDto,
     ) -> Result<MemoResponseDto, AppError> {
+        use sea_orm::TransactionTrait;
+
         dto.validate()?;
 
         tracing::debug!("Patching memo");
@@ -205,34 +223,40 @@ impl MemoService {
         let date_to = dto.date_to.unwrap_or_else(|| existing_memo.date_to.into());
         let completed = dto.completed.unwrap_or(existing_memo.completed);
 
-        tracing::debug!("Patching memo with sanitized input");
+        tracing::debug!("Patching memo with sanitized input in transaction");
+
+        // Start a transaction for atomic patch + optional tags update
+        let txn = self.db.begin().await.map_err(AppError::Database)?;
 
         let memo =
-            MemoRepository::update(&self.db, id, title, description, date_to, completed).await?;
+            MemoRepository::update(&txn, id, title, description, date_to, completed).await?;
 
         // Update tags if provided
         if let Some(new_tags) = dto.tags {
-            TagRepository::remove_all_tags_from_memo(&self.db, id).await?;
+            TagRepository::remove_all_tags_from_memo(&txn, id).await?;
 
             if !new_tags.is_empty() {
                 let mut tag_ids = Vec::new();
                 for tag_name in &new_tags {
-                    let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
+                    let tag = TagRepository::get_or_create(&txn, tag_name.trim().to_string()).await?;
                     tag_ids.push(tag.id);
                 }
 
-                TagRepository::assign_tags_to_memo(&self.db, id, tag_ids).await?;
+                TagRepository::assign_tags_to_memo(&txn, id, tag_ids).await?;
             }
 
             // Clean up unused tags
-            TagRepository::delete_unused_tags(&self.db).await?;
+            TagRepository::delete_unused_tags(&txn).await?;
 
             tracing::debug!(memo_id = %memo.id, "Tags updated during patch");
         }
 
+        // Commit transaction - all operations succeed or all fail
+        txn.commit().await.map_err(AppError::Database)?;
+
         tracing::info!(memo_id = %memo.id, "Memo patched successfully");
 
-        // Load tags for response
+        // Load tags for response (outside transaction)
         let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
 
         Ok(Self::entity_to_dto_with_tags(memo, tags))

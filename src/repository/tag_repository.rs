@@ -1,7 +1,7 @@
 use crate::entities::{memo_tags, prelude::*, tags};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
-    QueryFilter, Set,
+    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter,
+    Set,
 };
 use uuid::Uuid;
 
@@ -12,10 +12,10 @@ impl TagRepository {
     ///
     /// If the tag exists, returns it. Otherwise, creates a new tag.
     #[tracing::instrument(skip(db))]
-    pub async fn get_or_create(
-        db: &DatabaseConnection,
-        name: String,
-    ) -> Result<tags::Model, DbErr> {
+    pub async fn get_or_create<C>(db: &C, name: String) -> Result<tags::Model, DbErr>
+    where
+        C: ConnectionTrait,
+    {
         // Try to find existing tag
         if let Some(existing_tag) = Tags::find()
             .filter(tags::Column::Name.eq(&name))
@@ -45,11 +45,14 @@ impl TagRepository {
     /// Creates tag associations in the memo_tags junction table.
     /// Tags should already exist (call get_or_create first).
     #[tracing::instrument(skip(db))]
-    pub async fn assign_tags_to_memo(
-        db: &DatabaseConnection,
+    pub async fn assign_tags_to_memo<C>(
+        db: &C,
         memo_id: Uuid,
         tag_ids: Vec<Uuid>,
-    ) -> Result<(), DbErr> {
+    ) -> Result<(), DbErr>
+    where
+        C: ConnectionTrait,
+    {
         for tag_id in tag_ids {
             let active_model = memo_tags::ActiveModel {
                 memo_id: Set(memo_id),
@@ -68,10 +71,10 @@ impl TagRepository {
     ///
     /// Deletes all entries in memo_tags for the given memo_id.
     #[tracing::instrument(skip(db))]
-    pub async fn remove_all_tags_from_memo(
-        db: &DatabaseConnection,
-        memo_id: Uuid,
-    ) -> Result<(), DbErr> {
+    pub async fn remove_all_tags_from_memo<C>(db: &C, memo_id: Uuid) -> Result<(), DbErr>
+    where
+        C: ConnectionTrait,
+    {
         MemoTags::delete_many()
             .filter(memo_tags::Column::MemoId.eq(memo_id))
             .exec(db)
@@ -86,10 +89,10 @@ impl TagRepository {
     ///
     /// Returns tag names as a vector of strings.
     #[tracing::instrument(skip(db))]
-    pub async fn get_tags_for_memo(
-        db: &DatabaseConnection,
-        memo_id: Uuid,
-    ) -> Result<Vec<String>, DbErr> {
+    pub async fn get_tags_for_memo<C>(db: &C, memo_id: Uuid) -> Result<Vec<String>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
         let tag_names = MemoTags::find()
             .filter(memo_tags::Column::MemoId.eq(memo_id))
             .find_also_related(Tags)
@@ -106,10 +109,11 @@ impl TagRepository {
     ///
     /// Returns a list of (tag_name, count) tuples sorted by count descending.
     #[tracing::instrument(skip(db))]
-    pub async fn get_all_tags_with_counts(
-        db: &DatabaseConnection,
-    ) -> Result<Vec<(String, i64)>, DbErr> {
-        use sea_orm::{ConnectionTrait, Statement};
+    pub async fn get_all_tags_with_counts<C>(db: &C) -> Result<Vec<(String, i64)>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        use sea_orm::Statement;
 
         let query = r#"
             SELECT t.name, COUNT(mt.memo_id) as count
@@ -142,8 +146,11 @@ impl TagRepository {
     ///
     /// Returns the number of tags deleted.
     #[tracing::instrument(skip(db))]
-    pub async fn delete_unused_tags(db: &DatabaseConnection) -> Result<u64, DbErr> {
-        use sea_orm::{ConnectionTrait, Statement};
+    pub async fn delete_unused_tags<C>(db: &C) -> Result<u64, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        use sea_orm::Statement;
 
         let query = r#"
             DELETE FROM tags
