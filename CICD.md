@@ -146,10 +146,10 @@ DATABASE_URL: postgres://testuser:testpass@localhost:5432/testdb
 - Deployment validation
 
 **Docker Image Tags**:
-- `ghcr.io/YOUR_USERNAME/actix-web-template:latest`
-- `ghcr.io/YOUR_USERNAME/actix-web-template:v1.0.0`
-- `ghcr.io/YOUR_USERNAME/actix-web-template:v1.0`
-- `ghcr.io/YOUR_USERNAME/actix-web-template:v1`
+- `ghcr.io/arch7tect/actix-web-template:latest`
+- `ghcr.io/arch7tect/actix-web-template:v1.0.0`
+- `ghcr.io/arch7tect/actix-web-template:v1.0`
+- `ghcr.io/arch7tect/actix-web-template:v1`
 
 ### 4. Deploy Workflow (.github/workflows/deploy.yml)
 
@@ -192,12 +192,12 @@ DATABASE_URL: postgres://testuser:testpass@localhost:5432/testdb
 
 1. **Fork/Clone the repository**:
 ```bash
-git clone https://github.com/YOUR_USERNAME/actix-web-template.git
+git clone https://github.com/arch7tect/actix-web-template.git
 cd actix-web-template
 ```
 
-2. **Update README badges**:
-   - Replace `YOUR_USERNAME` in the badge URLs in `README.md`
+2. **Update README badges** (if forking):
+   - Update badge URLs in `README.md` with your GitHub username
    - Line 3-5 in README.md
 
 3. **Enable GitHub Actions**:
@@ -369,12 +369,12 @@ Add these secrets:
 Update these URLs in your README.md:
 
 ```markdown
-[![Test](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/test.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/test.yml)
-[![Lint](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/lint.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/lint.yml)
-[![Release](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/release.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/release.yml)
+[![Test](https://github.com/arch7tect/actix-web-template/actions/workflows/test.yml/badge.svg)](https://github.com/arch7tect/actix-web-template/actions/workflows/test.yml)
+[![Lint](https://github.com/arch7tect/actix-web-template/actions/workflows/lint.yml/badge.svg)](https://github.com/arch7tect/actix-web-template/actions/workflows/lint.yml)
+[![Release](https://github.com/arch7tect/actix-web-template/actions/workflows/release.yml/badge.svg)](https://github.com/arch7tect/actix-web-template/actions/workflows/release.yml)
 ```
 
-Replace `YOUR_USERNAME` with your actual GitHub username.
+Replace `arch7tect` with your actual GitHub username if you fork this repository.
 
 ## Troubleshooting
 

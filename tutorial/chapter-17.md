@@ -1048,9 +1048,9 @@ In this chapter, you learned:
 
 ## Next Steps
 
-In the final chapter, you'll:
+In the next chapter, you'll:
 
-- **Chapter 18: Documentation and Next Steps**: Finalize documentation, review the complete architecture, and explore future enhancements
+- **Chapter 18: Adding Tags and Advanced Filtering**: Implement a tagging system with many-to-many relationships, advanced filtering, and tag lifecycle management
 
 ### Optional Exercises
 

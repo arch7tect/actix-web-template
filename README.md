@@ -1,8 +1,8 @@
 # Actix Web Memos Application
 
-[![Test](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/test.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/test.yml)
-[![Lint](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/lint.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/lint.yml)
-[![Release](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/release.yml/badge.svg)](https://github.com/YOUR_USERNAME/actix-web-template/actions/workflows/release.yml)
+[![Test](https://github.com/arch7tect/actix-web-template/actions/workflows/test.yml/badge.svg)](https://github.com/arch7tect/actix-web-template/actions/workflows/test.yml)
+[![Lint](https://github.com/arch7tect/actix-web-template/actions/workflows/lint.yml/badge.svg)](https://github.com/arch7tect/actix-web-template/actions/workflows/lint.yml)
+[![Release](https://github.com/arch7tect/actix-web-template/actions/workflows/release.yml/badge.svg)](https://github.com/arch7tect/actix-web-template/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 A production-ready web application built with Rust and Actix Web for managing memos. Features a complete REST API, server-side rendered web UI, PostgreSQL database, comprehensive testing, security features, and Docker deployment.
@@ -58,7 +58,7 @@ Learn by building this application from scratch with our comprehensive 18-chapte
 - [Chapter 15: Docker Deployment](tutorial/chapter-15.md)
 - [Chapter 16: CI/CD Pipeline](tutorial/chapter-16.md)
 - [Chapter 17: Observability Stack](tutorial/chapter-17.md)
-- Chapter 18: Documentation and Next Steps *(coming soon)*
+- [Chapter 18: Adding Tags and Advanced Filtering](tutorial/chapter-18.md)
 
 ## Quick Start
 
