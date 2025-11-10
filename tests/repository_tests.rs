@@ -1,6 +1,6 @@
 mod common;
 
-use actix_web_template::repository::MemoRepository;
+use actix_web_template::repository::{MemoRepository, TagRepository};
 use chrono::Utc;
 use common::{fixtures::create_test_memo_dto, setup_test_db};
 
@@ -145,7 +145,7 @@ async fn test_repository_find_all_basic() {
     .await
     .unwrap();
 
-    let result = MemoRepository::find_all(&db, 10, 0, None, "created_at", "desc").await;
+    let result = MemoRepository::find_all(&db, 10, 0, None, "created_at", "desc", None).await;
     assert!(result.is_ok());
 
     let (memos, total) = result.unwrap();
@@ -169,7 +169,7 @@ async fn test_repository_find_all_with_pagination() {
         ids.push(memo.id);
     }
 
-    let result = MemoRepository::find_all(&db, 2, 0, None, "created_at", "desc").await;
+    let result = MemoRepository::find_all(&db, 2, 0, None, "created_at", "desc", None).await;
     assert!(result.is_ok());
 
     let (memos, _) = result.unwrap();
@@ -200,7 +200,7 @@ async fn test_repository_find_all_with_completed_filter() {
     .await
     .unwrap();
 
-    let result = MemoRepository::find_all(&db, 10, 0, Some(true), "created_at", "desc").await;
+    let result = MemoRepository::find_all(&db, 10, 0, Some(true), "created_at", "desc", None).await;
     assert!(result.is_ok());
 
     let (memos, total) = result.unwrap();
@@ -224,7 +224,7 @@ async fn test_repository_find_all_sorting() {
         .await
         .unwrap();
 
-    let result_asc = MemoRepository::find_all(&db, 100, 0, None, "title", "asc").await;
+    let result_asc = MemoRepository::find_all(&db, 100, 0, None, "title", "asc", None).await;
     assert!(result_asc.is_ok());
 
     let (memos_asc, _) = result_asc.unwrap();
@@ -237,4 +237,302 @@ async fn test_repository_find_all_sorting() {
 
     MemoRepository::delete(&db, memo1.id).await.ok();
     MemoRepository::delete(&db, memo2.id).await.ok();
+}
+
+// ========== Tag Repository Tests ==========
+
+#[tokio::test]
+async fn test_tag_get_or_create_new() {
+    let db = setup_test_db().await;
+
+    let result = TagRepository::get_or_create(&db, "urgent".to_string()).await;
+    assert!(result.is_ok());
+
+    let tag = result.unwrap();
+    assert_eq!(tag.name, "urgent");
+    assert!(!tag.id.is_nil());
+}
+
+#[tokio::test]
+async fn test_tag_get_or_create_existing() {
+    let db = setup_test_db().await;
+
+    let tag1 = TagRepository::get_or_create(&db, "work".to_string())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, "work".to_string())
+        .await
+        .unwrap();
+
+    assert_eq!(tag1.id, tag2.id);
+    assert_eq!(tag1.name, tag2.name);
+}
+
+#[tokio::test]
+async fn test_tag_assign_to_memo() {
+    let db = setup_test_db().await;
+    let dto = create_test_memo_dto("Tagged Memo", None);
+    let memo = MemoRepository::create(&db, dto.title, dto.description, dto.date_to)
+        .await
+        .unwrap();
+
+    let tag1 = TagRepository::get_or_create(&db, "urgent".to_string())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, "work".to_string())
+        .await
+        .unwrap();
+
+    let result = TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag1.id, tag2.id]).await;
+    assert!(result.is_ok());
+
+    let tags = TagRepository::get_tags_for_memo(&db, memo.id)
+        .await
+        .unwrap();
+    assert_eq!(tags.len(), 2);
+    assert!(tags.contains(&"urgent".to_string()));
+    assert!(tags.contains(&"work".to_string()));
+
+    MemoRepository::delete(&db, memo.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_tag_get_tags_for_memo_empty() {
+    let db = setup_test_db().await;
+    let dto = create_test_memo_dto("No Tags", None);
+    let memo = MemoRepository::create(&db, dto.title, dto.description, dto.date_to)
+        .await
+        .unwrap();
+
+    let tags = TagRepository::get_tags_for_memo(&db, memo.id)
+        .await
+        .unwrap();
+    assert_eq!(tags.len(), 0);
+
+    MemoRepository::delete(&db, memo.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_tag_remove_all_from_memo() {
+    let db = setup_test_db().await;
+    let dto = create_test_memo_dto("Tags to Remove", None);
+    let memo = MemoRepository::create(&db, dto.title, dto.description, dto.date_to)
+        .await
+        .unwrap();
+
+    let tag = TagRepository::get_or_create(&db, "temp".to_string())
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag.id])
+        .await
+        .unwrap();
+
+    let result = TagRepository::remove_all_tags_from_memo(&db, memo.id).await;
+    assert!(result.is_ok());
+
+    let tags = TagRepository::get_tags_for_memo(&db, memo.id)
+        .await
+        .unwrap();
+    assert_eq!(tags.len(), 0);
+
+    MemoRepository::delete(&db, memo.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_tag_get_all_with_counts() {
+    let db = setup_test_db().await;
+
+    let dto1 = create_test_memo_dto("Memo 1", None);
+    let memo1 = MemoRepository::create(&db, dto1.title, dto1.description, dto1.date_to)
+        .await
+        .unwrap();
+
+    let dto2 = create_test_memo_dto("Memo 2", None);
+    let memo2 = MemoRepository::create(&db, dto2.title, dto2.description, dto2.date_to)
+        .await
+        .unwrap();
+
+    let tag = TagRepository::get_or_create(&db, "shared".to_string())
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo1.id, vec![tag.id])
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo2.id, vec![tag.id])
+        .await
+        .unwrap();
+
+    let result = TagRepository::get_all_tags_with_counts(&db).await;
+    assert!(result.is_ok());
+
+    let tags = result.unwrap();
+    let shared_tag = tags.iter().find(|(name, _)| name == "shared");
+    assert!(shared_tag.is_some());
+    let (_, count) = shared_tag.unwrap();
+    assert!(*count >= 2);
+
+    MemoRepository::delete(&db, memo1.id).await.ok();
+    MemoRepository::delete(&db, memo2.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_tag_delete_unused() {
+    let db = setup_test_db().await;
+
+    let tag = TagRepository::get_or_create(&db, "unused_tag".to_string())
+        .await
+        .unwrap();
+
+    let dto = create_test_memo_dto("Temp Memo", None);
+    let memo = MemoRepository::create(&db, dto.title, dto.description, dto.date_to)
+        .await
+        .unwrap();
+
+    TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag.id])
+        .await
+        .unwrap();
+
+    MemoRepository::delete(&db, memo.id).await.unwrap();
+
+    let result = TagRepository::delete_unused_tags(&db).await;
+    assert!(result.is_ok());
+
+    let tags = TagRepository::get_all_tags_with_counts(&db).await.unwrap();
+    let unused_exists = tags.iter().any(|(name, _)| name == "unused_tag");
+    assert!(!unused_exists);
+}
+
+#[tokio::test]
+async fn test_repository_find_all_with_tag_filter() {
+    let db = setup_test_db().await;
+
+    let dto1 = create_test_memo_dto("Memo with tag1", None);
+    let memo1 = MemoRepository::create(&db, dto1.title, dto1.description, dto1.date_to)
+        .await
+        .unwrap();
+
+    let dto2 = create_test_memo_dto("Memo with tag2", None);
+    let memo2 = MemoRepository::create(&db, dto2.title, dto2.description, dto2.date_to)
+        .await
+        .unwrap();
+
+    let dto3 = create_test_memo_dto("Memo with both", None);
+    let memo3 = MemoRepository::create(&db, dto3.title, dto3.description, dto3.date_to)
+        .await
+        .unwrap();
+
+    let tag1 = TagRepository::get_or_create(&db, "filter1".to_string())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, "filter2".to_string())
+        .await
+        .unwrap();
+
+    TagRepository::assign_tags_to_memo(&db, memo1.id, vec![tag1.id])
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo2.id, vec![tag2.id])
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo3.id, vec![tag1.id, tag2.id])
+        .await
+        .unwrap();
+
+    let result = MemoRepository::find_all(
+        &db,
+        10,
+        0,
+        None,
+        "created_at",
+        "desc",
+        Some(vec!["filter1".to_string()]),
+    )
+    .await;
+    assert!(result.is_ok());
+
+    let (memos, _) = result.unwrap();
+    let memo_ids: Vec<_> = memos.iter().map(|m| m.id).collect();
+    assert!(memo_ids.contains(&memo1.id));
+    assert!(memo_ids.contains(&memo3.id));
+
+    MemoRepository::delete(&db, memo1.id).await.ok();
+    MemoRepository::delete(&db, memo2.id).await.ok();
+    MemoRepository::delete(&db, memo3.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_repository_find_all_with_multiple_tag_filter_or_logic() {
+    let db = setup_test_db().await;
+
+    let dto1 = create_test_memo_dto("Has tag1", None);
+    let memo1 = MemoRepository::create(&db, dto1.title, dto1.description, dto1.date_to)
+        .await
+        .unwrap();
+
+    let dto2 = create_test_memo_dto("Has tag2", None);
+    let memo2 = MemoRepository::create(&db, dto2.title, dto2.description, dto2.date_to)
+        .await
+        .unwrap();
+
+    let dto3 = create_test_memo_dto("Has neither", None);
+    let memo3 = MemoRepository::create(&db, dto3.title, dto3.description, dto3.date_to)
+        .await
+        .unwrap();
+
+    let tag1 = TagRepository::get_or_create(&db, "or1".to_string())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, "or2".to_string())
+        .await
+        .unwrap();
+
+    TagRepository::assign_tags_to_memo(&db, memo1.id, vec![tag1.id])
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo2.id, vec![tag2.id])
+        .await
+        .unwrap();
+
+    let result = MemoRepository::find_all(
+        &db,
+        10,
+        0,
+        None,
+        "created_at",
+        "desc",
+        Some(vec!["or1".to_string(), "or2".to_string()]),
+    )
+    .await;
+    assert!(result.is_ok());
+
+    let (memos, _) = result.unwrap();
+    let memo_ids: Vec<_> = memos.iter().map(|m| m.id).collect();
+    assert!(memo_ids.contains(&memo1.id));
+    assert!(memo_ids.contains(&memo2.id));
+    assert!(!memo_ids.contains(&memo3.id));
+
+    MemoRepository::delete(&db, memo1.id).await.ok();
+    MemoRepository::delete(&db, memo2.id).await.ok();
+    MemoRepository::delete(&db, memo3.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_repository_find_all_with_nonexistent_tag() {
+    let db = setup_test_db().await;
+
+    let result = MemoRepository::find_all(
+        &db,
+        10,
+        0,
+        None,
+        "created_at",
+        "desc",
+        Some(vec!["nonexistent_tag".to_string()]),
+    )
+    .await;
+    assert!(result.is_ok());
+
+    let (memos, total) = result.unwrap();
+    assert_eq!(memos.len(), 0);
+    assert_eq!(total, 0);
 }

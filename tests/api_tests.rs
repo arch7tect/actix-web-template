@@ -29,6 +29,7 @@ async fn test_create_memo_endpoint() {
         title: "Test API Memo".to_string(),
         description: Some("Created via API test".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let req = test::TestRequest::post()
@@ -72,6 +73,7 @@ async fn test_get_memo_endpoint() {
         title: "Get Test Memo".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let create_req = test::TestRequest::post()
@@ -145,6 +147,7 @@ async fn test_update_memo_endpoint() {
         title: "Original Title".to_string(),
         description: Some("Original description".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let create_req = test::TestRequest::post()
@@ -159,6 +162,7 @@ async fn test_update_memo_endpoint() {
         title: "Updated Title".to_string(),
         description: Some("Updated description".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
         completed: true,
     };
 
@@ -206,6 +210,7 @@ async fn test_patch_memo_endpoint() {
         title: "Original Title".to_string(),
         description: Some("Original description".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let create_req = test::TestRequest::post()
@@ -221,6 +226,7 @@ async fn test_patch_memo_endpoint() {
         description: None,
         date_to: None,
         completed: None,
+        tags: None,
     };
 
     let patch_req = test::TestRequest::patch()
@@ -267,6 +273,7 @@ async fn test_delete_memo_endpoint() {
         title: "To Delete".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let create_req = test::TestRequest::post()
@@ -314,6 +321,7 @@ async fn test_toggle_complete_endpoint() {
         title: "Toggle Test".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let create_req = test::TestRequest::post()
@@ -371,6 +379,7 @@ async fn test_list_memos_endpoint() {
         title: "List Test 1".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let create_req1 = test::TestRequest::post()
@@ -385,6 +394,7 @@ async fn test_list_memos_endpoint() {
         title: "List Test 2".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let create_req2 = test::TestRequest::post()
@@ -441,6 +451,7 @@ async fn test_list_memos_with_pagination() {
             title: format!("Pagination Test {}", i),
             description: None,
             date_to: Utc::now(),
+        tags: vec![],
         };
 
         let create_req = test::TestRequest::post()
@@ -492,6 +503,7 @@ async fn test_create_memo_validation_error() {
         title: "".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let req = test::TestRequest::post()
@@ -501,4 +513,225 @@ async fn test_create_memo_validation_error() {
 
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), 400);
+}
+
+// ========== Tag API Tests ==========
+
+#[tokio::test]
+async fn test_create_memo_with_tags() {
+    let settings = Settings::load().expect("Failed to load settings");
+    let db = Database::connect(&settings.database.url)
+        .await
+        .expect("Failed to connect to database");
+    let state = AppState::new(settings, db);
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state))
+            .app_data(web::JsonConfig::default().limit(1048576))
+            .service(handlers::create_memo)
+            .service(handlers::delete_memo),
+    )
+    .await;
+
+    let create_dto = CreateMemoDto {
+        title: "Memo with Tags".to_string(),
+        description: Some("Testing tag creation".to_string()),
+        date_to: Utc::now(),
+        tags: vec!["work".to_string(), "urgent".to_string()],
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&create_dto)
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 201);
+
+    let memo: MemoResponseDto = test::read_body_json(resp).await;
+    assert_eq!(memo.tags.len(), 2);
+    assert!(memo.tags.contains(&"work".to_string()));
+    assert!(memo.tags.contains(&"urgent".to_string()));
+
+    let delete_req = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", memo.id))
+        .to_request();
+    test::call_service(&app, delete_req).await;
+}
+
+#[tokio::test]
+async fn test_list_tags_endpoint() {
+    let settings = Settings::load().expect("Failed to load settings");
+    let db = Database::connect(&settings.database.url)
+        .await
+        .expect("Failed to connect to database");
+    let state = AppState::new(settings, db);
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state))
+            .app_data(web::JsonConfig::default().limit(1048576))
+            .service(handlers::create_memo)
+            .service(handlers::list_tags)
+            .service(handlers::delete_memo),
+    )
+    .await;
+
+    let create_dto = CreateMemoDto {
+        title: "Tag List Test".to_string(),
+        description: None,
+        date_to: Utc::now(),
+        tags: vec!["api_test_tag".to_string()],
+    };
+
+    let create_req = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&create_dto)
+        .to_request();
+
+    let create_resp = test::call_service(&app, create_req).await;
+    let memo: MemoResponseDto = test::read_body_json(create_resp).await;
+
+    let list_req = test::TestRequest::get()
+        .uri("/api/v1/tags")
+        .to_request();
+
+    let list_resp = test::call_service(&app, list_req).await;
+    assert_eq!(list_resp.status(), 200);
+
+    let delete_req = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", memo.id))
+        .to_request();
+    test::call_service(&app, delete_req).await;
+}
+
+#[tokio::test]
+async fn test_filter_memos_by_tags() {
+    let settings = Settings::load().expect("Failed to load settings");
+    let db = Database::connect(&settings.database.url)
+        .await
+        .expect("Failed to connect to database");
+    let state = AppState::new(settings, db);
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state))
+            .app_data(web::JsonConfig::default().limit(1048576))
+            .service(handlers::create_memo)
+            .service(handlers::list_memos)
+            .service(handlers::delete_memo),
+    )
+    .await;
+
+    let dto1 = CreateMemoDto {
+        title: "Work Memo".to_string(),
+        description: None,
+        date_to: Utc::now(),
+        tags: vec!["filter_test1".to_string()],
+    };
+
+    let dto2 = CreateMemoDto {
+        title: "Personal Memo".to_string(),
+        description: None,
+        date_to: Utc::now(),
+        tags: vec!["filter_test2".to_string()],
+    };
+
+    let req1 = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&dto1)
+        .to_request();
+    let resp1 = test::call_service(&app, req1).await;
+    let memo1: MemoResponseDto = test::read_body_json(resp1).await;
+
+    let req2 = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&dto2)
+        .to_request();
+    let resp2 = test::call_service(&app, req2).await;
+    let memo2: MemoResponseDto = test::read_body_json(resp2).await;
+
+    let filter_req = test::TestRequest::get()
+        .uri("/api/v1/memos?tags=filter_test1")
+        .to_request();
+
+    let filter_resp = test::call_service(&app, filter_req).await;
+    assert_eq!(filter_resp.status(), 200);
+
+    let result: PaginatedResponse<MemoResponseDto> = test::read_body_json(filter_resp).await;
+    let memo_ids: Vec<_> = result.data.iter().map(|m| m.id).collect();
+    assert!(memo_ids.contains(&memo1.id));
+    assert!(!memo_ids.contains(&memo2.id));
+
+    let delete1 = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", memo1.id))
+        .to_request();
+    let delete2 = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", memo2.id))
+        .to_request();
+    test::call_service(&app, delete1).await;
+    test::call_service(&app, delete2).await;
+}
+
+#[tokio::test]
+async fn test_update_memo_tags() {
+    let settings = Settings::load().expect("Failed to load settings");
+    let db = Database::connect(&settings.database.url)
+        .await
+        .expect("Failed to connect to database");
+    let state = AppState::new(settings, db);
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state))
+            .app_data(web::JsonConfig::default().limit(1048576))
+            .service(handlers::create_memo)
+            .service(handlers::update_memo)
+            .service(handlers::delete_memo),
+    )
+    .await;
+
+    let create_dto = CreateMemoDto {
+        title: "Update Tags Test".to_string(),
+        description: None,
+        date_to: Utc::now(),
+        tags: vec!["old_tag".to_string()],
+    };
+
+    let create_req = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&create_dto)
+        .to_request();
+
+    let create_resp = test::call_service(&app, create_req).await;
+    let created_memo: MemoResponseDto = test::read_body_json(create_resp).await;
+    assert_eq!(created_memo.tags.len(), 1);
+
+    let update_dto = UpdateMemoDto {
+        title: "Updated Tags Test".to_string(),
+        description: None,
+        date_to: Utc::now(),
+        tags: vec!["new_tag1".to_string(), "new_tag2".to_string()],
+        completed: false,
+    };
+
+    let update_req = test::TestRequest::put()
+        .uri(&format!("/api/v1/memos/{}", created_memo.id))
+        .set_json(&update_dto)
+        .to_request();
+
+    let update_resp = test::call_service(&app, update_req).await;
+    assert_eq!(update_resp.status(), 200);
+
+    let updated_memo: MemoResponseDto = test::read_body_json(update_resp).await;
+    assert_eq!(updated_memo.tags.len(), 2);
+    assert!(updated_memo.tags.contains(&"new_tag1".to_string()));
+    assert!(updated_memo.tags.contains(&"new_tag2".to_string()));
+    assert!(!updated_memo.tags.contains(&"old_tag".to_string()));
+
+    let delete_req = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", created_memo.id))
+        .to_request();
+    test::call_service(&app, delete_req).await;
 }
