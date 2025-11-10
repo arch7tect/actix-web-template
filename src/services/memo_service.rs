@@ -64,7 +64,11 @@ impl MemoService {
             memo_dtos.push(Self::entity_to_dto_with_tags(memo, tags));
         }
 
-        tracing::info!(count = memo_dtos.len(), total, "Successfully fetched memos with tags");
+        tracing::info!(
+            count = memo_dtos.len(),
+            total,
+            "Successfully fetched memos with tags"
+        );
 
         Ok(PaginatedResponse::new(memo_dtos, total, limit, offset))
     }
@@ -103,13 +107,9 @@ impl MemoService {
         // Start a transaction for atomic memo + tags creation
         let txn = self.db.begin().await.map_err(AppError::Database)?;
 
-        let memo = MemoRepository::create(
-            &txn,
-            sanitized_title,
-            sanitized_description,
-            dto.date_to,
-        )
-        .await?;
+        let memo =
+            MemoRepository::create(&txn, sanitized_title, sanitized_description, dto.date_to)
+                .await?;
 
         // Handle tags if provided
         if !dto.tags.is_empty() {
@@ -228,8 +228,7 @@ impl MemoService {
         // Start a transaction for atomic patch + optional tags update
         let txn = self.db.begin().await.map_err(AppError::Database)?;
 
-        let memo =
-            MemoRepository::update(&txn, id, title, description, date_to, completed).await?;
+        let memo = MemoRepository::update(&txn, id, title, description, date_to, completed).await?;
 
         // Update tags if provided
         if let Some(new_tags) = dto.tags {
@@ -238,7 +237,8 @@ impl MemoService {
             if !new_tags.is_empty() {
                 let mut tag_ids = Vec::new();
                 for tag_name in &new_tags {
-                    let tag = TagRepository::get_or_create(&txn, tag_name.trim().to_string()).await?;
+                    let tag =
+                        TagRepository::get_or_create(&txn, tag_name.trim().to_string()).await?;
                     tag_ids.push(tag.id);
                 }
 

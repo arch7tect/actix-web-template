@@ -1,5 +1,5 @@
 use crate::{dto::TagResponseDto, error::AppError, repository::TagRepository, state::AppState};
-use actix_web::{get, web, HttpResponse, Result};
+use actix_web::{HttpResponse, Result, get, web};
 
 /// List all tags with usage counts
 ///

@@ -22,6 +22,7 @@ async fn test_create_memo() {
         title: "Test Memo".to_string(),
         description: Some("Test description".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let result = service.create_memo(create_dto).await;
@@ -43,6 +44,7 @@ async fn test_get_memo_by_id() {
         title: "Test Get By ID".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let created = service.create_memo(create_dto).await.unwrap();
@@ -74,6 +76,7 @@ async fn test_update_memo() {
         title: "Original Title".to_string(),
         description: Some("Original description".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let created = service.create_memo(create_dto).await.unwrap();
@@ -83,6 +86,7 @@ async fn test_update_memo() {
         description: Some("Updated description".to_string()),
         date_to: Utc::now(),
         completed: true,
+        tags: vec![],
     };
 
     let result = service.update_memo(created.id, update_dto).await;
@@ -104,6 +108,7 @@ async fn test_patch_memo() {
         title: "Original Title".to_string(),
         description: Some("Original description".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let created = service.create_memo(create_dto).await.unwrap();
@@ -113,6 +118,7 @@ async fn test_patch_memo() {
         description: None,
         date_to: None,
         completed: None,
+        tags: None,
     };
 
     let result = service.patch_memo(created.id, patch_dto).await;
@@ -137,6 +143,7 @@ async fn test_toggle_complete() {
         title: "Toggle Test".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let created = service.create_memo(create_dto).await.unwrap();
@@ -159,6 +166,7 @@ async fn test_delete_memo() {
         title: "To Delete".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let created = service.create_memo(create_dto).await.unwrap();
@@ -187,6 +195,7 @@ async fn test_get_all_memos() {
         title: "Memo 1".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
     let memo1 = service.create_memo(create_dto1).await.unwrap();
 
@@ -194,6 +203,7 @@ async fn test_get_all_memos() {
         title: "Memo 2".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
     let memo2 = service.create_memo(create_dto2).await.unwrap();
 
@@ -203,6 +213,7 @@ async fn test_get_all_memos() {
         completed: None,
         sort_by: Some("created_at".to_string()),
         order: Some("desc".to_string()),
+        tags: None,
     };
 
     let result = service.get_all_memos(params).await;
@@ -224,6 +235,7 @@ async fn test_get_all_memos_with_filter() {
         title: "Completed Memo".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
     let created = service.create_memo(create_dto).await.unwrap();
 
@@ -232,6 +244,7 @@ async fn test_get_all_memos_with_filter() {
         description: None,
         date_to: created.date_to,
         completed: true,
+        tags: vec![],
     };
     service.update_memo(created.id, update_dto).await.unwrap();
 
@@ -241,6 +254,7 @@ async fn test_get_all_memos_with_filter() {
         completed: Some(true),
         sort_by: Some("created_at".to_string()),
         order: Some("desc".to_string()),
+        tags: None,
     };
 
     let result = service.get_all_memos(params).await;
@@ -261,6 +275,7 @@ async fn test_create_memo_validation_fails() {
         title: "".to_string(), // Empty title should fail validation
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let result = service.create_memo(create_dto).await;
@@ -277,6 +292,7 @@ async fn test_pagination() {
             title: format!("Pagination Test {}", i),
             description: None,
             date_to: Utc::now(),
+            tags: vec![],
         };
         let memo = service.create_memo(create_dto).await.unwrap();
         created_ids.push(memo.id);
@@ -288,6 +304,7 @@ async fn test_pagination() {
         completed: None,
         sort_by: Some("created_at".to_string()),
         order: Some("desc".to_string()),
+        tags: None,
     };
 
     let result = service.get_all_memos(params).await;
@@ -311,6 +328,7 @@ async fn test_create_memo_with_sanitization() {
         title: "<script>alert('xss')</script>Test Memo".to_string(),
         description: Some("<img src=x onerror=alert('xss')>Description".to_string()),
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let result = service.create_memo(create_dto).await;
@@ -339,6 +357,7 @@ async fn test_update_memo_sanitizes_input() {
         title: "Original".to_string(),
         description: None,
         date_to: Utc::now(),
+        tags: vec![],
     };
 
     let created = service.create_memo(create_dto).await.unwrap();
@@ -349,6 +368,7 @@ async fn test_update_memo_sanitizes_input() {
         description: Some("Safe description".to_string()),
         date_to: Utc::now(),
         completed: false,
+        tags: vec![],
     };
 
     let updated = service.update_memo(created.id, update_dto).await.unwrap();
@@ -371,16 +391,19 @@ async fn test_create_memos_batch_transaction() {
             title: "Batch 1".to_string(),
             description: Some("First in batch".to_string()),
             date_to: Utc::now(),
+            tags: vec![],
         },
         CreateMemoDto {
             title: "Batch 2".to_string(),
             description: Some("Second in batch".to_string()),
             date_to: Utc::now(),
+            tags: vec![],
         },
         CreateMemoDto {
             title: "Batch 3".to_string(),
             description: Some("Third in batch".to_string()),
             date_to: Utc::now(),
+            tags: vec![],
         },
     ];
 
@@ -413,6 +436,7 @@ async fn test_delete_memos_batch_transaction() {
             title: format!("Batch Delete {}", i),
             description: None,
             date_to: Utc::now(),
+            tags: vec![],
         };
         let created = service.create_memo(dto).await.unwrap();
         ids.push(created.id);
@@ -439,16 +463,19 @@ async fn test_batch_create_with_validation_error() {
             title: "Valid Memo 1".to_string(),
             description: None,
             date_to: Utc::now(),
+            tags: vec![],
         },
         CreateMemoDto {
             title: "".to_string(), // Invalid - empty title
             description: None,
             date_to: Utc::now(),
+            tags: vec![],
         },
         CreateMemoDto {
             title: "Valid Memo 2".to_string(),
             description: None,
             date_to: Utc::now(),
+            tags: vec![],
         },
     ];
 

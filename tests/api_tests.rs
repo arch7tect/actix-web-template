@@ -451,7 +451,7 @@ async fn test_list_memos_with_pagination() {
             title: format!("Pagination Test {}", i),
             description: None,
             date_to: Utc::now(),
-        tags: vec![],
+            tags: vec![],
         };
 
         let create_req = test::TestRequest::post()
@@ -593,9 +593,7 @@ async fn test_list_tags_endpoint() {
     let create_resp = test::call_service(&app, create_req).await;
     let memo: MemoResponseDto = test::read_body_json(create_resp).await;
 
-    let list_req = test::TestRequest::get()
-        .uri("/api/v1/tags")
-        .to_request();
+    let list_req = test::TestRequest::get().uri("/api/v1/tags").to_request();
 
     let list_resp = test::call_service(&app, list_req).await;
     assert_eq!(list_resp.status(), 200);
