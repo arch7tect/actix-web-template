@@ -42,6 +42,7 @@ pub struct WebCreateMemoForm {
     pub title: String,
     pub description: Option<String>,
     pub date_to: String,
+    pub tags: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -51,6 +52,7 @@ pub struct WebUpdateMemoForm {
     pub description: Option<String>,
     pub date_to: String,
     pub completed: Option<String>,
+    pub tags: Option<String>,
 }
 
 #[get("/")]
@@ -135,11 +137,22 @@ pub async fn create_memo_web(
 
     let service = MemoService::new(state.db.clone());
 
+    let tags = form
+        .tags
+        .as_ref()
+        .map(|t| {
+            t.split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
     let dto = CreateMemoDto {
         title: form.title.clone(),
         description: form.description.clone(),
         date_to,
-        tags: vec![], // TODO: Parse tags from form
+        tags,
     };
 
     let _memo = service.create_memo(dto).await?;
@@ -207,12 +220,23 @@ pub async fn update_memo_web(
 
     let service = MemoService::new(state.db.clone());
 
+    let tags = form
+        .tags
+        .as_ref()
+        .map(|t| {
+            t.split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
     let dto = UpdateMemoDto {
         title: form.title.clone(),
         description: form.description.clone(),
         date_to,
         completed,
-        tags: vec![], // TODO: Parse tags from form
+        tags,
     };
 
     let memo = service.update_memo(id, dto).await?;

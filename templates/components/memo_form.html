@@ -28,6 +28,17 @@
     </div>
 
     <div class="form-group">
+        <label for="tags">Tags</label>
+        <input
+            type="text"
+            id="tags"
+            name="tags"
+            placeholder="Enter tags (comma-separated, e.g., work, urgent, personal)"
+            {% match memo %}{% when Some with (m) %}{% if !m.tags.is_empty() %}value="{{ m.tags.join(", ") }}"{% endif %}{% when None %}{% endmatch %}>
+        <small class="form-hint">Separate multiple tags with commas. Tags will be created automatically.</small>
+    </div>
+
+    <div class="form-group">
         <label for="date_to">Due Date *</label>
         <input
             type="datetime-local"

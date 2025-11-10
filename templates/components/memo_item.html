@@ -27,6 +27,13 @@
     <p class="memo-description">{{ desc }}</p>
     {% when None %}
     {% endmatch %}
+    {% if !memo.tags.is_empty() %}
+    <div class="memo-tags">
+        {% for tag in memo.tags %}
+        <span class="tag">{{ tag }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
     <div class="memo-footer">
         <span class="memo-date">Due: {{ memo.date_to }}</span>
         <span class="memo-status {% if memo.completed %}status-completed{% else %}status-pending{% endif %}">

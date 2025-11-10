@@ -45,11 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const completed = document.getElementById('filter-completed').value;
         const sortBy = document.getElementById('sort-by').value;
         const order = document.getElementById('order').value;
+        const tags = document.getElementById('filter-tags').value;
 
         const params = new URLSearchParams();
         if (completed) params.append('completed', completed);
         if (sortBy) params.append('sort_by', sortBy);
         if (order) params.append('order', order);
+        if (tags && tags.trim()) params.append('tags', tags.trim());
 
         const url = '/web/memos?' + params.toString();
 
@@ -63,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filter-completed').addEventListener('change', updateMemoList);
     document.getElementById('sort-by').addEventListener('change', updateMemoList);
     document.getElementById('order').addEventListener('change', updateMemoList);
+    document.getElementById('filter-tags').addEventListener('input', updateMemoList);
 
     // Handle memo actions (edit, toggle, delete)
     document.addEventListener('click', function(e) {
@@ -150,6 +153,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <div class="filters">
         <form id="filter-form">
+            <input
+                type="text"
+                id="filter-tags"
+                name="tags"
+                placeholder="Filter by tags (comma-separated)"
+                class="filter-input">
+
             <select
                 id="filter-completed"
                 name="completed">
