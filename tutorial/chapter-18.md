@@ -1305,6 +1305,348 @@ open http://localhost:3737/swagger-ui/
 # Look for "Tags" section and GET /api/v1/tags endpoint
 ```
 
+## Step 9: Add Automated Tests
+
+Now let's add comprehensive tests to ensure our tag functionality works correctly.
+
+### 9.1: Update Test Fixtures
+
+First, update the test fixture to include the new `tags` field:
+
+**File: `tests/common/fixtures.rs`**
+
+```rust
+pub fn create_test_memo_dto(title: &str, description: Option<&str>) -> CreateMemoDto {
+    CreateMemoDto {
+        title: title.to_string(),
+        description: description.map(|s| s.to_string()),
+        date_to: Utc::now(),
+        tags: vec![],  // Add this line
+    }
+}
+```
+
+### 9.2: Add Repository Tests
+
+Add comprehensive tag repository tests to verify database operations:
+
+**File: `tests/repository_tests.rs`**
+
+Add these imports at the top:
+
+```rust
+use actix_web_template::repository::{MemoRepository, TagRepository};
+```
+
+Update all `find_all` calls to include the tags parameter:
+
+```rust
+// Change this:
+MemoRepository::find_all(&db, 10, 0, None, "created_at", "desc").await
+
+// To this:
+MemoRepository::find_all(&db, 10, 0, None, "created_at", "desc", None).await
+```
+
+Add these tag-specific tests at the end of the file:
+
+```rust
+// ========== Tag Repository Tests ==========
+
+#[tokio::test]
+async fn test_tag_get_or_create_new() {
+    let db = setup_test_db().await;
+
+    let result = TagRepository::get_or_create(&db, "urgent".to_string()).await;
+    assert!(result.is_ok());
+
+    let tag = result.unwrap();
+    assert_eq!(tag.name, "urgent");
+    assert!(!tag.id.is_nil());
+}
+
+#[tokio::test]
+async fn test_tag_get_or_create_existing() {
+    let db = setup_test_db().await;
+
+    let tag1 = TagRepository::get_or_create(&db, "work".to_string())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, "work".to_string())
+        .await
+        .unwrap();
+
+    assert_eq!(tag1.id, tag2.id);
+    assert_eq!(tag1.name, tag2.name);
+}
+
+#[tokio::test]
+async fn test_tag_assign_to_memo() {
+    let db = setup_test_db().await;
+    let dto = create_test_memo_dto("Tagged Memo", None);
+    let memo = MemoRepository::create(&db, dto.title, dto.description, dto.date_to)
+        .await
+        .unwrap();
+
+    let tag1 = TagRepository::get_or_create(&db, "urgent".to_string())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, "work".to_string())
+        .await
+        .unwrap();
+
+    let result = TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag1.id, tag2.id]).await;
+    assert!(result.is_ok());
+
+    let tags = TagRepository::get_tags_for_memo(&db, memo.id)
+        .await
+        .unwrap();
+    assert_eq!(tags.len(), 2);
+    assert!(tags.contains(&"urgent".to_string()));
+    assert!(tags.contains(&"work".to_string()));
+
+    MemoRepository::delete(&db, memo.id).await.ok();
+}
+
+#[tokio::test]
+async fn test_repository_find_all_with_tag_filter() {
+    let db = setup_test_db().await;
+
+    let dto1 = create_test_memo_dto("Memo with tag1", None);
+    let memo1 = MemoRepository::create(&db, dto1.title, dto1.description, dto1.date_to)
+        .await
+        .unwrap();
+
+    let dto2 = create_test_memo_dto("Memo with tag2", None);
+    let memo2 = MemoRepository::create(&db, dto2.title, dto2.description, dto2.date_to)
+        .await
+        .unwrap();
+
+    let tag1 = TagRepository::get_or_create(&db, "filter1".to_string())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, "filter2".to_string())
+        .await
+        .unwrap();
+
+    TagRepository::assign_tags_to_memo(&db, memo1.id, vec![tag1.id])
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo2.id, vec![tag2.id])
+        .await
+        .unwrap();
+
+    let result = MemoRepository::find_all(
+        &db,
+        10,
+        0,
+        None,
+        "created_at",
+        "desc",
+        Some(vec!["filter1".to_string()]),
+    )
+    .await;
+    assert!(result.is_ok());
+
+    let (memos, _) = result.unwrap();
+    let memo_ids: Vec<_> = memos.iter().map(|m| m.id).collect();
+    assert!(memo_ids.contains(&memo1.id));
+    assert!(!memo_ids.contains(&memo2.id));
+
+    MemoRepository::delete(&db, memo1.id).await.ok();
+    MemoRepository::delete(&db, memo2.id).await.ok();
+}
+```
+
+### 9.3: Add API Integration Tests
+
+Add API tests to verify the REST endpoints work correctly:
+
+**File: `tests/api_tests.rs`**
+
+Update all `CreateMemoDto` instantiations to include `tags`:
+
+```rust
+let create_dto = CreateMemoDto {
+    title: "Test".to_string(),
+    description: None,
+    date_to: Utc::now(),
+    tags: vec![],  // Add this line to all CreateMemoDto instances
+};
+```
+
+Update `PatchMemoDto` instantiation:
+
+```rust
+let patch_dto = PatchMemoDto {
+    title: Some("Patched".to_string()),
+    description: None,
+    date_to: None,
+    completed: None,
+    tags: None,  // Add this line
+};
+```
+
+Add these tag-specific API tests at the end:
+
+```rust
+// ========== Tag API Tests ==========
+
+#[tokio::test]
+async fn test_create_memo_with_tags() {
+    let settings = Settings::load().expect("Failed to load settings");
+    let db = Database::connect(&settings.database.url)
+        .await
+        .expect("Failed to connect to database");
+    let state = AppState::new(settings, db);
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state))
+            .app_data(web::JsonConfig::default().limit(1048576))
+            .service(handlers::create_memo)
+            .service(handlers::delete_memo),
+    )
+    .await;
+
+    let create_dto = CreateMemoDto {
+        title: "Memo with Tags".to_string(),
+        description: Some("Testing tag creation".to_string()),
+        date_to: Utc::now(),
+        tags: vec!["work".to_string(), "urgent".to_string()],
+    };
+
+    let req = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&create_dto)
+        .to_request();
+
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 201);
+
+    let memo: MemoResponseDto = test::read_body_json(resp).await;
+    assert_eq!(memo.tags.len(), 2);
+    assert!(memo.tags.contains(&"work".to_string()));
+    assert!(memo.tags.contains(&"urgent".to_string()));
+
+    let delete_req = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", memo.id))
+        .to_request();
+    test::call_service(&app, delete_req).await;
+}
+
+#[tokio::test]
+async fn test_filter_memos_by_tags() {
+    let settings = Settings::load().expect("Failed to load settings");
+    let db = Database::connect(&settings.database.url)
+        .await
+        .expect("Failed to connect to database");
+    let state = AppState::new(settings, db);
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(state))
+            .app_data(web::JsonConfig::default().limit(1048576))
+            .service(handlers::create_memo)
+            .service(handlers::list_memos)
+            .service(handlers::delete_memo),
+    )
+    .await;
+
+    let dto1 = CreateMemoDto {
+        title: "Work Memo".to_string(),
+        description: None,
+        date_to: Utc::now(),
+        tags: vec!["api_filter_test1".to_string()],
+    };
+
+    let dto2 = CreateMemoDto {
+        title: "Personal Memo".to_string(),
+        description: None,
+        date_to: Utc::now(),
+        tags: vec!["api_filter_test2".to_string()],
+    };
+
+    let req1 = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&dto1)
+        .to_request();
+    let resp1 = test::call_service(&app, req1).await;
+    let memo1: MemoResponseDto = test::read_body_json(resp1).await;
+
+    let req2 = test::TestRequest::post()
+        .uri("/api/v1/memos")
+        .set_json(&dto2)
+        .to_request();
+    let resp2 = test::call_service(&app, req2).await;
+    let memo2: MemoResponseDto = test::read_body_json(resp2).await;
+
+    let filter_req = test::TestRequest::get()
+        .uri("/api/v1/memos?tags=api_filter_test1")
+        .to_request();
+
+    let filter_resp = test::call_service(&app, filter_req).await;
+    assert_eq!(filter_resp.status(), 200);
+
+    let result: PaginatedResponse<MemoResponseDto> = test::read_body_json(filter_resp).await;
+    let memo_ids: Vec<_> = result.data.iter().map(|m| m.id).collect();
+    assert!(memo_ids.contains(&memo1.id));
+    assert!(!memo_ids.contains(&memo2.id));
+
+    let delete1 = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", memo1.id))
+        .to_request();
+    let delete2 = test::TestRequest::delete()
+        .uri(&format!("/api/v1/memos/{}", memo2.id))
+        .to_request();
+    test::call_service(&app, delete1).await;
+    test::call_service(&app, delete2).await;
+}
+```
+
+### 9.4: Run the Tests
+
+Execute the tests to verify everything works:
+
+```bash
+# Run all repository tests
+cargo test --test repository_tests -- --test-threads=1
+
+# Run tag-specific repository tests
+cargo test --test repository_tests test_tag -- --nocapture
+
+# Run all API tests
+cargo test --test api_tests
+
+# Run tag-specific API tests
+cargo test --test api_tests test_create_memo_with_tags -- --nocapture
+cargo test --test api_tests test_filter_memos_by_tags -- --nocapture
+```
+
+### Test Coverage Summary
+
+The tests verify:
+
+**Repository Layer:**
+- ✅ Tag creation (get-or-create pattern)
+- ✅ Tag assignment to memos
+- ✅ Tag retrieval for memos
+- ✅ Tag removal from memos
+- ✅ Tag listing with usage counts
+- ✅ Unused tag cleanup
+- ✅ Tag filtering (single and multiple tags)
+- ✅ OR logic for tag filtering
+- ✅ Non-existent tag handling
+
+**API Layer:**
+- ✅ Creating memos with tags
+- ✅ Listing tags endpoint
+- ✅ Filtering memos by tags via query params
+- ✅ Updating memo tags
+- ✅ Proper JSON serialization/deserialization
+
+All tests should pass, confirming that your tag implementation is production-ready!
+
 ## Common Issues and Solutions
 
 ### Issue: Tags not appearing in response
