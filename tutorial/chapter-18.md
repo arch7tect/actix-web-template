@@ -958,6 +958,208 @@ pub async fn update_memo(
 3. Clean up any orphaned tags
 4. Load tags for response
 
+### 5.1: Add Transaction Support for Data Integrity
+
+**The Problem:**
+
+The code above has a potential issue - what if one operation succeeds but another fails?
+
+```rust
+// Without transactions:
+let memo = MemoRepository::create(&self.db, ...).await?;  // ✅ succeeds
+assign_tags_to_memo(&self.db, memo.id, ...).await?;       // ❌ fails → memo without tags!
+```
+
+**The Solution: Database Transactions**
+
+Wrap multi-step operations in transactions to ensure atomicity - all operations succeed together or fail together.
+
+**Update Repository Methods to Support Transactions:**
+
+First, make repository methods generic to work with both `DatabaseConnection` and `DatabaseTransaction`:
+
+**File: `src/repository/tag_repository.rs`**
+
+Update imports:
+```rust
+use sea_orm::{
+    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter,
+    Set,
+};
+```
+
+Update ALL method signatures to use generic `ConnectionTrait`:
+
+```rust
+pub async fn get_or_create<C>(db: &C, name: String) -> Result<tags::Model, DbErr>
+where
+    C: ConnectionTrait,
+{
+    // method body unchanged
+}
+
+pub async fn assign_tags_to_memo<C>(
+    db: &C,
+    memo_id: Uuid,
+    tag_ids: Vec<Uuid>,
+) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    // method body unchanged
+}
+
+// Apply same pattern to:
+// - remove_all_tags_from_memo
+// - get_tags_for_memo
+// - get_all_tags_with_counts
+// - delete_unused_tags
+```
+
+**File: `src/repository/memo_repository.rs`**
+
+Update ALL methods similarly:
+
+```rust
+pub async fn create<C>(
+    db: &C,
+    title: String,
+    description: Option<String>,
+    date_to: DateTime<Utc>,
+) -> Result<memos::Model, DbErr>
+where
+    C: ConnectionTrait,
+{
+    // method body unchanged
+}
+
+// Apply same pattern to: find_all, find_by_id, update, delete
+```
+
+**Update Service Layer to Use Transactions:**
+
+Now update `src/services/memo_service.rs` to wrap operations in transactions:
+
+**create_memo with Transaction:**
+
+```rust
+pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, AppError> {
+    use sea_orm::TransactionTrait;
+
+    dto.validate()?;
+
+    let sanitized_title = sanitize_html(&dto.title);
+    let sanitized_description = sanitize_optional_html(dto.description.as_deref());
+
+    // Start a transaction for atomic memo + tags creation
+    let txn = self.db.begin().await.map_err(AppError::Database)?;
+
+    let memo = MemoRepository::create(
+        &txn,  // Use transaction, not self.db
+        sanitized_title,
+        sanitized_description,
+        dto.date_to,
+    )
+    .await?;
+
+    // Handle tags if provided
+    if !dto.tags.is_empty() {
+        let mut tag_ids = Vec::new();
+        for tag_name in &dto.tags {
+            let tag = TagRepository::get_or_create(&txn, tag_name.trim().to_string()).await?;
+            tag_ids.push(tag.id);
+        }
+
+        TagRepository::assign_tags_to_memo(&txn, memo.id, tag_ids).await?;
+    }
+
+    // Commit transaction - all operations succeed or all fail
+    txn.commit().await.map_err(AppError::Database)?;
+
+    // Load tags for response (outside transaction - read-only)
+    let tags = TagRepository::get_tags_for_memo(&self.db, memo.id).await?;
+
+    Ok(Self::entity_to_dto_with_tags(memo, tags))
+}
+```
+
+**update_memo with Transaction:**
+
+```rust
+pub async fn update_memo(
+    &self,
+    id: Uuid,
+    dto: UpdateMemoDto,
+) -> Result<MemoResponseDto, AppError> {
+    use sea_orm::TransactionTrait;
+
+    dto.validate()?;
+
+    let sanitized_title = sanitize_html(&dto.title);
+    let sanitized_description = sanitize_optional_html(dto.description.as_deref());
+
+    // Start a transaction for atomic update + tags replacement
+    let txn = self.db.begin().await.map_err(AppError::Database)?;
+
+    let memo = MemoRepository::update(
+        &txn,
+        id,
+        sanitized_title,
+        sanitized_description,
+        dto.date_to,
+        dto.completed,
+    )
+    .await
+    .map_err(|e| match e {
+        sea_orm::DbErr::RecordNotFound(_) => {
+            AppError::NotFound(format!("Memo with id {} not found", id))
+        }
+        _ => AppError::Database(e),
+    })?;
+
+    // Update tags: remove all existing and add new ones
+    TagRepository::remove_all_tags_from_memo(&txn, id).await?;
+
+    if !dto.tags.is_empty() {
+        let mut tag_ids = Vec::new();
+        for tag_name in &dto.tags {
+            let tag = TagRepository::get_or_create(&txn, tag_name.trim().to_string()).await?;
+            tag_ids.push(tag.id);
+        }
+
+        TagRepository::assign_tags_to_memo(&txn, id, tag_ids).await?;
+    }
+
+    // Clean up unused tags
+    TagRepository::delete_unused_tags(&txn).await?;
+
+    // Commit transaction
+    txn.commit().await.map_err(AppError::Database)?;
+
+    // Load tags for response
+    let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
+
+    Ok(Self::entity_to_dto_with_tags(memo, tags))
+}
+```
+
+Apply the same pattern to `patch_memo` method.
+
+**Why Transactions Matter:**
+
+✅ **Atomicity**: All operations succeed together or fail together
+✅ **Consistency**: No partial state (memo without tags)
+✅ **Data Integrity**: Prevents orphaned records
+✅ **Production-Ready**: Proper error handling with automatic rollback
+
+**Transaction Flow:**
+
+1. `txn = db.begin()` - Start transaction
+2. Perform multiple database operations using `&txn`
+3. If any operation fails (returns `Err`), transaction automatically rolls back
+4. `txn.commit()` - Commit all changes atomically
+5. Read-only operations (like loading tags for response) can happen outside transaction
+
 **Update `get_all_memos` to load tags:**
 
 ```rust
