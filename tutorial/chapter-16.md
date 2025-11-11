@@ -172,7 +172,7 @@ jobs:
 
       - name: Run migrations
         run: |
-          cd migration && cargo run
+          cargo run -p migration
         env:
           DATABASE_URL: postgres://testuser:testpass@localhost:5432/testdb
 

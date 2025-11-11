@@ -2,6 +2,7 @@
 name = "migration"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [lib]
 name = "migration"
@@ -15,7 +16,7 @@ path = "src/main.rs"
 async-std = { version = "1", features = ["attributes", "tokio1"] }
 
 [dependencies.sea-orm-migration]
-version = "1.0"
+version = "1.1"
 features = [
   "sqlx-postgres",
   "runtime-tokio-rustls",

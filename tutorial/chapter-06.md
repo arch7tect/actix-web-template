@@ -950,10 +950,8 @@ EOF
    # Or using Docker
    docker exec -it postgres_container psql -U postgres -c "CREATE DATABASE memos_test;"
 
-   # Run migrations on test database
-   cd migration
-   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/memos_test cargo run
-   cd ..
+   # Run migrations on test database (from project root)
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/memos_test cargo run -p migration
 
    # Verify tables created
    psql postgresql://postgres:postgres@localhost:5432/memos_test -c "\dt"

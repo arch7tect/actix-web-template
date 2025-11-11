@@ -111,17 +111,17 @@ Create a migration to add the `tags` and `memo_tags` tables.
 **Create migration file:**
 
 ```bash
-# Navigate to migration directory
+# Generate a new migration using SeaORM CLI (from project root)
+# Note: sea-orm-cli needs to run from the migration directory to access migration files
 cd migration
-
-# Generate a new migration using SeaORM CLI
 sea-orm-cli migrate generate create_tags_tables
-
-# This creates a new file like: src/m20250110_000001_create_tags_tables.rs
-# The timestamp will be different - use the generated filename
-
 cd ..
+
+# This creates a new file like: migration/src/m20250110_000001_create_tags_tables.rs
+# The timestamp will be different - use the generated filename
 ```
+
+**Note**: While we use the workspace setup for running migrations (`cargo run -p migration`), the `sea-orm-cli migrate generate` command must be run from within the `migration` directory because it needs to access and modify the migration source files directly.
 
 **Important**: The `sea-orm-cli migrate generate` command automatically:
 - Creates a uniquely timestamped migration file
@@ -306,9 +306,11 @@ impl MigratorTrait for Migrator {
 **Run the migration:**
 
 ```bash
-cd migration
-cargo run
-cd ..
+# From project root (workspace command)
+cargo run -p migration
+
+# Or using sea-orm-cli
+sea-orm-cli migrate up
 ```
 
 **Expected output:**

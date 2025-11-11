@@ -726,9 +726,13 @@ docker exec -it postgres_container psql -U postgres -c "CREATE DATABASE memos_te
 
 **Run migrations on test database**:
 ```bash
+# Using sea-orm-cli (recommended)
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/memos_test sea-orm-cli migrate up
 
-# Or cd to migration directory
+# Or using workspace command (from project root)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/memos_test cargo run -p migration
+
+# Or traditional approach
 cd migration
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/memos_test cargo run
 cd ..

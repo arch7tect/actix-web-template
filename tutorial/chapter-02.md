@@ -430,6 +430,12 @@ Add at the top of your root `Cargo.toml`:
 members = [".", "migration"]
 ```
 
+**What is a Cargo workspace?**
+- Allows multiple related packages (crates) in one repository
+- Shares `Cargo.lock` for consistent dependencies
+- Enables running commands on specific packages with `-p`
+- Common for projects with separate binaries or tools (like migrations)
+
 **Verify**:
 ```bash
 cd ..
@@ -722,16 +728,25 @@ Should compile without errors.
    docker start postgres-dev
    ```
 
-2. **Run the migration**:
+2. **Run the migration from the project root**:
    ```bash
-   cd migration
-   cargo run -- up
+   # From project root - workspace automatically finds migration package
+   cargo run -p migration -- up
    ```
+
+   **Note**: Since we set up a Cargo workspace in Step 2, you can run migration commands from the project root. The `-p migration` flag tells Cargo to run the binary from the `migration` workspace member.
 
    Expected output:
    ```
    Applying migration 'm20240115_000001_create_memos_table'
    Migration 'm20240115_000001_create_memos_table' has been applied
+   ```
+
+   **Alternative**: You can still use the traditional approach:
+   ```bash
+   cd migration
+   cargo run -- up
+   cd ..
    ```
 
 3. **Verify the schema** in PostgreSQL:
@@ -1242,14 +1257,14 @@ Error: relation "memos" already exists
 cd migration
 cargo run -- status
 
-# Rollback and reapply
-cargo run -- down
-cargo run -- up
+# Rollback and reapply (from project root)
+cargo run -p migration -- down
+cargo run -p migration -- up
 
 # Or drop and recreate database
 psql -U postgres -c "DROP DATABASE memos_db;"
 psql -U postgres -c "CREATE DATABASE memos_db;"
-cargo run -- up
+cargo run -p migration -- up
 ```
 
 ---
@@ -1268,9 +1283,8 @@ Error: error returned from database
 # Verify database URL
 echo $DATABASE_URL
 
-# Ensure migration ran successfully
-cd migration
-cargo run -- up
+# Ensure migration ran successfully (from project root)
+cargo run -p migration -- up
 
 # Try entity generation with explicit URL
 sea-orm-cli generate entity \

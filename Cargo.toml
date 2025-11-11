@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "migration"]
+resolver = "2"
+
 [package]
 name = "actix-web-template"
 version = "0.2.5"

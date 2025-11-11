@@ -1046,8 +1046,8 @@ psql $DATABASE_URL
 # Ensure .env is correct
 cat .env | grep DATABASE_URL
 
-# Run migrations
-cd migration && cargo run
+# Run migrations (from project root)
+cargo run -p migration
 ```
 
 ---

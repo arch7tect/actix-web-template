@@ -98,8 +98,8 @@ COPY migration ./migration
 # Build for release
 RUN cargo build --release
 
-# Build migration binary (it builds to migration/target/release/)
-RUN cd migration && cargo build --release
+# Build migration binary (workspace member)
+RUN cargo build --release -p migration
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -116,7 +116,7 @@ WORKDIR /app
 
 # Copy the binaries from builder
 COPY --from=builder /app/target/release/actix-web-template .
-COPY --from=builder /app/migration/target/release/migration ./migration
+COPY --from=builder /app/target/release/migration ./migration
 
 # Copy templates and static files
 COPY --from=builder /app/templates ./templates
