@@ -22,7 +22,7 @@ A complete memo management application featuring:
 
 ## Tutorial Structure
 
-The tutorial currently ships with eighteen chapters (0-17) that guide you from environment setup through a complete production-ready application with observability. Each chapter builds on previous concepts and should be completed sequentially.
+The tutorial currently ships with nineteen chapters (0-18) that guide you from environment setup through a complete production-ready application with observability and advanced features. Each chapter builds on previous concepts and should be completed sequentially.
 
 ### Part 1: Foundation (Chapters 0-4)
 
@@ -60,9 +60,9 @@ The tutorial currently ships with eighteen chapters (0-17) that guide you from e
 - **[Chapter 16: CI/CD Pipeline](chapter-16.md)** - Automate testing, linting, and releases with GitHub Actions
 - **[Chapter 17: Observability Stack](chapter-17.md)** - Add distributed tracing, metrics, and log aggregation
 
-### Coming Soon
+### Part 7: Advanced Features (Chapter 18)
 
-- **Chapter 18: Documentation and Next Steps** - Final architecture documentation and future enhancements
+- **[Chapter 18: Adding Tags and Advanced Filtering](chapter-18.md)** - Implement many-to-many relationships, tag management, and advanced query filtering
 
 ## How to Use This Tutorial
 
@@ -81,9 +81,9 @@ The tutorial currently ships with eighteen chapters (0-17) that guide you from e
 - **Security & Testing**: 2-3 hours
 - **Deployment & CI/CD**: 2-3 hours
 - **Observability**: 1-2 hours
-- **Documentation**: 1 hour
+- **Advanced Features**: 2-3 hours
 
-**Total**: 14-21 hours depending on experience level
+**Total**: 16-24 hours depending on experience level
 
 ## Getting Help
 
