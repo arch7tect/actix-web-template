@@ -36,14 +36,36 @@ This project includes a comprehensive **19-chapter tutorial** (Chapters 0-18) th
 git clone https://github.com/arch7tect/actix-web-template.git
 cd actix-web-template
 
-# Run with Docker Compose
+# Run with Docker Compose (includes full observability stack)
 docker-compose up --build
 
-# Access the application
-# Web UI:     http://localhost:3737/
-# API:        http://localhost:3737/api/v1/
-# Swagger UI: http://localhost:3737/swagger-ui/
+# Wait for all services to start (30-60 seconds)
+docker-compose ps
 ```
+
+### Application Access
+
+Once running, access these services:
+
+**Main Application:**
+- **Web UI**: http://localhost:3737/
+- **REST API**: http://localhost:3737/api/v1/memos
+- **Swagger UI**: http://localhost:3737/swagger-ui/
+- **Health Check**: http://localhost:3737/health
+- **Metrics**: http://localhost:3737/metrics
+
+**Observability Stack:**
+- **Grafana**: http://localhost:3001 (admin/admin)
+  - Pre-configured dashboards for logs, metrics, and traces
+  - All datasources ready: Prometheus, Loki, Jaeger
+- **Prometheus**: http://localhost:9090
+  - Metrics explorer and PromQL queries
+- **Jaeger**: http://localhost:16686
+  - Distributed tracing UI
+- **Loki**: http://localhost:3100
+  - Log aggregation (access via Grafana Explore)
+- **PostgreSQL**: localhost:5432
+  - Database: `memos_db` (postgres/postgres)
 
 For detailed setup instructions, see [Chapter 0: Prerequisites and Environment Setup](tutorial/chapter-00.md).
 
