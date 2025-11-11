@@ -19,46 +19,15 @@ A production-ready web application built with Rust and Actix Web for managing me
 
 ## Tutorial
 
-Learn by building this application from scratch with our comprehensive 18-chapter tutorial.
+**Learn by building this application from scratch!**
 
-**Completed: Chapters 0-17** | **Estimated time:** 15-23 hours total
+This project includes a comprehensive **19-chapter tutorial** (Chapters 0-18) that guides you through building a production-ready Rust web application from the ground up.
 
-### Part 1: Foundation (Chapters 0-4)
+**[📚 Start the Tutorial](tutorial/README.md)** - Complete chapter index with learning path and time estimates
 
-- [Chapter 0: Prerequisites and Environment Setup](tutorial/chapter-00.md)
-- [Chapter 1: Core Application Setup](tutorial/chapter-01.md)
-- [Chapter 2: Database Integration with SeaORM](tutorial/chapter-02.md)
-- [Chapter 3: Error Handling and Middleware](tutorial/chapter-03.md)
-- [Chapter 4: Health Checks and Monitoring](tutorial/chapter-04.md)
-
-### Part 2: Core Architecture (Chapters 5-7)
-
-- [Chapter 5: Data Transfer Objects and Validation](tutorial/chapter-05.md)
-- [Chapter 6: Repository Layer - Database Operations](tutorial/chapter-06.md)
-- [Chapter 7: Service Layer - Business Logic](tutorial/chapter-07.md)
-
-### Part 3: REST API (Chapters 8-9)
-
-- [Chapter 8: REST API Handlers](tutorial/chapter-08.md)
-- [Chapter 9: OpenAPI Documentation](tutorial/chapter-09.md)
-
-### Part 4: Web UI (Chapters 10-12)
-
-- [Chapter 10: Askama Templates - Server-Side Rendering](tutorial/chapter-10.md)
-- [Chapter 11: Static Assets and Styling](tutorial/chapter-11.md)
-- [Chapter 12: Web Page Handlers - Building the UI](tutorial/chapter-12.md)
-
-### Part 5: Security & Quality (Chapters 13-14)
-
-- [Chapter 13: Security Enhancements](tutorial/chapter-13.md)
-- [Chapter 14: Testing Strategy](tutorial/chapter-14.md)
-
-### Part 6: Deployment & Operations (Chapters 15-18)
-
-- [Chapter 15: Docker Deployment](tutorial/chapter-15.md)
-- [Chapter 16: CI/CD Pipeline](tutorial/chapter-16.md)
-- [Chapter 17: Observability Stack](tutorial/chapter-17.md)
-- [Chapter 18: Adding Tags and Advanced Filtering](tutorial/chapter-18.md)
+**Quick links:**
+- [Chapter 0: Prerequisites and Environment Setup](tutorial/chapter-00.md) - Start here
+- [Chapter 18: Adding Tags and Advanced Filtering](tutorial/chapter-18.md) - Latest chapter
 
 ## Quick Start
 
@@ -86,4 +55,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Ready to learn?** Start with [Chapter 0: Prerequisites and Environment Setup](tutorial/chapter-00.md)
 
-**Built with Rust 🦀 | Version 0.2.1**
+**Built with Rust 🦀 | Version 0.2.5**
