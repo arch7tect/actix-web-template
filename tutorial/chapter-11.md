@@ -1219,10 +1219,10 @@ Let's review the complete CSS implementation.
 
 ### Principles Demonstrated
 
-**Progressive Enhancement**
-- Base layout works without CSS (HTML is semantic)
-- CSS adds visual polish
-- JavaScript enhances interactivity
+**Layered Enhancement**
+- Base HTML is semantic and accessible
+- CSS adds visual polish and responsive design
+- JavaScript provides interactivity (required for UI functionality)
 
 **Mobile-First Responsive Design**
 - Default styles target mobile
@@ -1413,7 +1413,7 @@ In **Chapter 12: Web Page Handlers**, you'll:
 - Handle HTML form submissions (POST, PUT, DELETE)
 - Parse and validate form data in Actix Web
 - Return full-page renders vs partial AJAX updates
-- Implement progressive enhancement with vanilla JavaScript
+- Build server-side rendering with JavaScript interactivity
 - Test web handlers with integration tests
 - See your CSS come alive in the working application
 

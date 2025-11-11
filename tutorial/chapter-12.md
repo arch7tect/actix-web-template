@@ -4,9 +4,9 @@
 
 Web page handlers bridge your backend services with the frontend user interface, rendering server-side HTML using the Askama templates you created in Chapter 10. Unlike REST API handlers that return JSON, web handlers return complete HTML pages or HTML fragments, supporting both traditional form submissions and modern AJAX updates.
 
-In Chapter 11, you created beautiful CSS styling for your interface. Now, in this chapter, you'll implement the handlers that bring those styles to life by connecting them to your backend. You'll display memos, create and edit them through forms, and update the UI dynamically without full page reloads. You'll learn the "Redirect After Post" pattern, progressive enhancement with vanilla JavaScript, and how to handle HTML form data in Actix Web.
+In Chapter 11, you created beautiful CSS styling for your interface. Now, in this chapter, you'll implement the handlers that bring those styles to life by connecting them to your backend. You'll display memos, create and edit them through forms, and update the UI dynamically without full page reloads. You'll learn the "Redirect After Post" pattern, server-side rendering with vanilla JavaScript, and how to handle HTML form data in Actix Web.
 
-By the end of this chapter, you'll see your polished CSS from Chapter 11 come alive in a fully functional web application that works without JavaScript (baseline experience) and enhances with JavaScript for smooth AJAX interactions.
+By the end of this chapter, you'll see your polished CSS from Chapter 11 come alive in a fully functional web application with server-side rendered HTML and JavaScript-powered AJAX interactions for a smooth user experience.
 
 ## Prerequisites
 
@@ -38,7 +38,7 @@ By the end of this chapter, you will be able to:
 3. Parse and validate form data in Actix Web
 4. Implement full-page renders vs partial AJAX updates
 5. Return appropriate HTML fragments for client-side updates
-6. Use progressive enhancement for robust UX
+6. Build server-side rendered UIs with JavaScript interactivity
 7. Test web handlers with integration tests
 8. Understand the trade-offs between SSR and CSR
 
@@ -61,39 +61,15 @@ Client Request → Actix Handler → Service → Repository → Database
 **Benefits**:
 - **SEO-friendly**: Search engines see complete content
 - **Fast initial render**: No waiting for JavaScript bundle
-- **Works without JS**: Baseline experience for all users
-- **Reduced client load**: Server does the rendering work
+- **Less client-side processing**: Server does the rendering work
+- **Better perceived performance**: HTML visible immediately
 
 **Trade-offs**:
-- **Full page reloads**: Traditional forms cause navigation
+- **Full page reloads**: Traditional forms cause navigation (we use AJAX to avoid this)
 - **Server load**: Each render happens server-side
-- **No client state**: State reset on navigation
+- **JavaScript dependency**: Our UI requires JS for interactivity
 
-**Solution**: Progressive enhancement - start with SSR, add JavaScript for smooth updates.
-
-### Progressive Enhancement Pattern
-
-**Progressive Enhancement** builds in layers:
-
-1. **Base layer** (works for everyone): HTML + server-side rendering
-2. **Enhancement layer** (better experience): JavaScript adds AJAX, avoiding page reloads
-3. **Graceful degradation**: If JS fails or is disabled, site still works
-
-Example in our app:
-
-**Without JavaScript** (baseline):
-```
-User clicks "New Memo" → Full page navigation to /memos/new
-User submits form → POST /memos → Redirect to homepage
-```
-
-**With JavaScript** (enhanced):
-```
-User clicks "New Memo" → Fetch form HTML → Show in modal
-User submits form → AJAX POST /memos → Update memo list in-place
-```
-
-Both work. JavaScript just makes it smoother.
+**Our approach**: Server-side rendering combined with JavaScript for AJAX updates.
 
 ### HTML Form Handling in Actix Web
 
@@ -862,7 +838,7 @@ HttpServer::new(move || {
 
 **Note on imports**: If you've set up re-exports in `handlers/mod.rs` (from Step 11), you can use `handlers::index`. Otherwise, use the full path `handlers::web::index`.
 
-**Note on static files**: Static file serving (`.service(actix_files::Files::new("/static", "./static"))`) will be added in Chapter 12 when we create the actual CSS files. If it's already in your configuration, that's fine - the files will be created next chapter.
+**Note on static files**: Static file serving (`.service(actix_files::Files::new("/static", "./static"))`) was already configured in Chapter 11 along with the CSS files. Your application should already be serving static assets from the `./static` directory.
 
 **Route organization**:
 - `/` → Homepage (new in this chapter)
@@ -988,14 +964,9 @@ curl http://localhost:3737/web/memos
 
 **What works**:
 - Server-side rendered pages
-- Form submissions (with JavaScript)
+- Form submissions (requires JavaScript)
 - AJAX partial updates
-- Progressive enhancement (works without JS for basic operations)
-
-**What doesn't work yet** (if CSS not added):
-- Styling (covered in Chapter 12)
-- Visual polish
-- Modal animations
+- Interactive UI with smooth AJAX updates
 
 ## Common Issues and Solutions
 
@@ -1110,9 +1081,9 @@ let completed = form.completed.is_some();
 **Solution**:
 1. Check `showModal` function exists in index.html
 2. Verify modal element exists: `<div id="memo-form-modal">`
-3. Check CSS (Chapter 12): `.modal { display: none; }`
+3. Check CSS from Chapter 11: `.modal { display: none; }`
 
-Without CSS, modal might be invisible or always visible.
+Without the CSS from Chapter 11, modal might be invisible or always visible.
 
 ### Issue: Updated memo doesn't reflect changes
 
@@ -1143,12 +1114,12 @@ Let's review the complete web handler implementation.
 - **Handlers**: Parse HTTP requests, validate input, render templates
 - **Services**: Business logic, transactions, data transformations
 - **Templates**: Presentation logic, HTML structure
-- **JavaScript**: Client-side interactivity (optional enhancement)
+- **JavaScript**: Client-side interactivity (required for UI functionality)
 
-**Progressive Enhancement**
-- Base functionality works without JavaScript
-- JavaScript adds smooth UX (no page reloads)
-- Graceful degradation if JS fails
+**Server-Side Rendering with JavaScript**
+- Server renders all HTML (fast initial page load, SEO-friendly)
+- JavaScript handles all user interactions (AJAX updates)
+- Endpoints accessible directly but UI requires JavaScript
 
 **Type Safety**
 - Form structs with validation
@@ -1503,7 +1474,7 @@ You've successfully implemented a complete web interface with server-side render
 
 **Key achievements**:
 1. **Eight web handlers**: Full CRUD operations via HTML forms
-2. **Progressive enhancement**: Works without JavaScript, enhanced with it
+2. **Server-side rendering with JavaScript**: SSR for fast initial load, JS for interactivity
 3. **Form handling**: Validation, parsing, checkbox handling, datetime conversion
 4. **Template rendering**: Full pages and partial fragments
 5. **AJAX support**: Dynamic updates without page reloads
@@ -1518,13 +1489,13 @@ You've successfully implemented a complete web interface with server-side render
 - **Event delegation**: JavaScript pattern for dynamic content
 
 **How this fits into the application**:
-- **Handlers** (Chapter 11) connect **Templates** (Chapter 10) to **Services** (Chapter 7)
+- **Handlers** (this chapter) connect **Templates** (Chapter 10) to **Services** (Chapter 7)
 - **Services** use **Repositories** (Chapter 6) for database access
 - **DTOs** (Chapter 5) transfer data between layers
 - **Middleware** (Chapter 3) wraps all handlers (logging, security, rate limiting)
 - **Error handling** (Chapter 3) catches and converts errors consistently
 
-Web UI is complete. The app is functional but needs styling (Chapter 12).
+Web UI is complete with full functionality and styling from Chapter 11.
 
 ## Next Steps
 
@@ -1555,11 +1526,6 @@ The app is functional and beautiful. Now it's time to harden it against security
 - [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) - Modern HTTP requests
 - [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData) - Form serialization
 - [Event Delegation](https://javascript.info/event-delegation) - Pattern for dynamic content
-
-### Progressive Enhancement
-- [Progressive Enhancement](https://developer.mozilla.org/en-US/docs/Glossary/Progressive_Enhancement) - MDN definition
-- [Resilient Web Design](https://resilientwebdesign.com/) - Philosophy and patterns
-- [The Web Without JS](https://www.kryogenix.org/code/browser/everyonehasjs.html) - Why progressive enhancement matters
 
 ### Related Topics
 - [RESTful APIs vs HTML Forms](https://htmx.org/essays/how-did-rest-come-to-mean-the-opposite-of-rest/) - Understanding trade-offs

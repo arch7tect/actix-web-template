@@ -45,7 +45,7 @@ By the end of this chapter, you will be able to:
 
 - **Better SEO**: Search engines see complete content immediately
 - **Faster initial load**: No waiting for JavaScript to render
-- **Progressive enhancement**: Works without JavaScript, enhanced with it
+- **Server-side rendering**: HTML ready on first request
 - **Reduced client load**: Less processing on user devices
 
 ### Compile-Time vs Runtime Templates
@@ -530,7 +530,7 @@ document.addEventListener('DOMContentLoaded', function() {
   - Memo list container (includes component)
   - Hidden modal for forms
 
-**Progressive enhancement**: The page works with just HTML (server-rendered), enhanced with JavaScript for smooth UX (no page reloads).
+**Server-side rendering with JavaScript**: The page loads with complete HTML (server-rendered), then JavaScript handles all interactions for smooth UX (no page reloads).
 
 ### Step 7: Create Memo List Component
 
@@ -1437,8 +1437,8 @@ The templates exist and compile. Now it's time to serve them over HTTP and make 
 
 ### Related Topics
 - [Server-Side Rendering vs Client-Side Rendering](https://web.dev/rendering-on-the-web/) - Understand trade-offs
-- [Progressive Enhancement](https://developer.mozilla.org/en-US/docs/Glossary/Progressive_Enhancement) - Build for all users
 - [XSS Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html) - OWASP XSS guide
+- [AJAX with Vanilla JavaScript](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) - Modern web APIs
 
 ### Alternative Template Engines
 - [Tera](https://tera.netlify.app/) - Runtime template engine (Jinja2-like)
