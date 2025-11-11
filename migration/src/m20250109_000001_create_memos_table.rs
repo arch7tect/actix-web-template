@@ -18,11 +18,7 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .extra("DEFAULT gen_random_uuid()"),
                     )
-                    .col(
-                        ColumnDef::new(Memos::Title)
-                            .string_len(200)
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Memos::Title).string_len(200).not_null())
                     .col(ColumnDef::new(Memos::Description).text())
                     .col(
                         ColumnDef::new(Memos::DateTo)

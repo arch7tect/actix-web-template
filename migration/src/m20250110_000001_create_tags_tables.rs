@@ -54,11 +54,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(MemoTags::MemoId).uuid().not_null())
                     .col(ColumnDef::new(MemoTags::TagId).uuid().not_null())
-                    .primary_key(
-                        Index::create()
-                            .col(MemoTags::MemoId)
-                            .col(MemoTags::TagId),
-                    )
+                    .primary_key(Index::create().col(MemoTags::MemoId).col(MemoTags::TagId))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_memo_tags_memo_id")
