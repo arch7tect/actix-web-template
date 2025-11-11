@@ -1577,11 +1577,12 @@ Add these tag-specific tests at the end of the file:
 async fn test_tag_get_or_create_new() {
     let db = setup_test_db().await;
 
-    let result = TagRepository::get_or_create(&db, "urgent".to_string()).await;
+    let tag_name = format!("urgent-{}", uuid::Uuid::new_v4());
+    let result = TagRepository::get_or_create(&db, tag_name.clone()).await;
     assert!(result.is_ok());
 
     let tag = result.unwrap();
-    assert_eq!(tag.name, "urgent");
+    assert_eq!(tag.name, tag_name);
     assert!(!tag.id.is_nil());
 }
 
@@ -1649,10 +1650,18 @@ async fn test_repository_find_all_with_tag_filter() {
         .await
         .unwrap();
 
-    let tag1 = TagRepository::get_or_create(&db, "filter1".to_string())
+    let dto3 = create_test_memo_dto("Memo with both", None);
+    let memo3 = MemoRepository::create(&db, dto3.title, dto3.description, dto3.date_to)
         .await
         .unwrap();
-    let tag2 = TagRepository::get_or_create(&db, "filter2".to_string())
+
+    let tag1_name = format!("filter1-{}", uuid::Uuid::new_v4());
+    let tag2_name = format!("filter2-{}", uuid::Uuid::new_v4());
+
+    let tag1 = TagRepository::get_or_create(&db, tag1_name.clone())
+        .await
+        .unwrap();
+    let tag2 = TagRepository::get_or_create(&db, tag2_name.clone())
         .await
         .unwrap();
 
@@ -1660,6 +1669,9 @@ async fn test_repository_find_all_with_tag_filter() {
         .await
         .unwrap();
     TagRepository::assign_tags_to_memo(&db, memo2.id, vec![tag2.id])
+        .await
+        .unwrap();
+    TagRepository::assign_tags_to_memo(&db, memo3.id, vec![tag1.id, tag2.id])
         .await
         .unwrap();
 
@@ -1670,7 +1682,7 @@ async fn test_repository_find_all_with_tag_filter() {
         None,
         "created_at",
         "desc",
-        Some(vec!["filter1".to_string()]),
+        Some(vec![tag1_name.clone()]),
     )
     .await;
     assert!(result.is_ok());
@@ -1678,10 +1690,11 @@ async fn test_repository_find_all_with_tag_filter() {
     let (memos, _) = result.unwrap();
     let memo_ids: Vec<_> = memos.iter().map(|m| m.id).collect();
     assert!(memo_ids.contains(&memo1.id));
-    assert!(!memo_ids.contains(&memo2.id));
+    assert!(memo_ids.contains(&memo3.id));
 
     MemoRepository::delete(&db, memo1.id).await.ok();
     MemoRepository::delete(&db, memo2.id).await.ok();
+    MemoRepository::delete(&db, memo3.id).await.ok();
 }
 ```
 
