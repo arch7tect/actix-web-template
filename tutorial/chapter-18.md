@@ -1585,14 +1585,18 @@ async fn test_tag_get_or_create_new() {
     assert!(!tag.id.is_nil());
 }
 
+// Note: We use UUID-based unique tag names in tests to prevent conflicts
+// when tests run in parallel. This avoids duplicate key violations on the
+// unique constraint for tag names.
 #[tokio::test]
 async fn test_tag_get_or_create_existing() {
     let db = setup_test_db().await;
 
-    let tag1 = TagRepository::get_or_create(&db, "work".to_string())
+    let tag_name = format!("work-{}", uuid::Uuid::new_v4());
+    let tag1 = TagRepository::get_or_create(&db, tag_name.clone())
         .await
         .unwrap();
-    let tag2 = TagRepository::get_or_create(&db, "work".to_string())
+    let tag2 = TagRepository::get_or_create(&db, tag_name.clone())
         .await
         .unwrap();
 
@@ -1608,10 +1612,13 @@ async fn test_tag_assign_to_memo() {
         .await
         .unwrap();
 
-    let tag1 = TagRepository::get_or_create(&db, "urgent".to_string())
+    let tag1_name = format!("urgent-{}", uuid::Uuid::new_v4());
+    let tag2_name = format!("work-{}", uuid::Uuid::new_v4());
+
+    let tag1 = TagRepository::get_or_create(&db, tag1_name.clone())
         .await
         .unwrap();
-    let tag2 = TagRepository::get_or_create(&db, "work".to_string())
+    let tag2 = TagRepository::get_or_create(&db, tag2_name.clone())
         .await
         .unwrap();
 
@@ -1622,8 +1629,8 @@ async fn test_tag_assign_to_memo() {
         .await
         .unwrap();
     assert_eq!(tags.len(), 2);
-    assert!(tags.contains(&"urgent".to_string()));
-    assert!(tags.contains(&"work".to_string()));
+    assert!(tags.contains(&tag1_name));
+    assert!(tags.contains(&tag2_name));
 
     MemoRepository::delete(&db, memo.id).await.ok();
 }
