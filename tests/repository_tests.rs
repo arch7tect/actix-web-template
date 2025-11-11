@@ -326,9 +326,7 @@ async fn test_tag_remove_all_from_memo() {
         .unwrap();
 
     let tag_name = format!("temp-{}", uuid::Uuid::new_v4());
-    let tag = TagRepository::get_or_create(&db, tag_name)
-        .await
-        .unwrap();
+    let tag = TagRepository::get_or_create(&db, tag_name).await.unwrap();
     TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag.id])
         .await
         .unwrap();
