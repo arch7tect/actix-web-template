@@ -111,8 +111,26 @@ Create a migration to add the `tags` and `memo_tags` tables.
 **Create migration file:**
 
 ```bash
-# Create the migration file
-touch migration/src/m20250110_000001_create_tags_tables.rs
+# Navigate to migration directory
+cd migration
+
+# Generate a new migration using SeaORM CLI
+sea-orm-cli migrate generate create_tags_tables
+
+# This creates a new file like: src/m20250110_000001_create_tags_tables.rs
+# The timestamp will be different - use the generated filename
+
+cd ..
+```
+
+**Important**: The `sea-orm-cli migrate generate` command automatically:
+- Creates a uniquely timestamped migration file
+- Generates the basic migration structure
+- Adds the migration to `mod.rs`
+
+If you don't have `sea-orm-cli` installed:
+```bash
+cargo install sea-orm-cli
 ```
 
 **File: `migration/src/m20250110_000001_create_tags_tables.rs`**
