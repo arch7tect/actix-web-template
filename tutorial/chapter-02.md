@@ -567,6 +567,266 @@ enum Memos {
 }
 ```
 
+**Understanding the `DeriveIden` Pattern**
+
+At the bottom of the migration file (lines with the `enum Memos`), you'll notice the `#[derive(DeriveIden)]` attribute. This is a key pattern in SeaORM migrations that provides type-safe table and column naming:
+
+```rust
+#[derive(DeriveIden)]
+enum Memos {
+    Table,        // Represents the table name "memos"
+    Id,           // Represents the column "id"
+    Title,        // Represents the column "title"
+    DateTo,       // Represents the column "date_to"
+    CreatedAt,    // Represents the column "created_at"
+    // ... other columns
+}
+```
+
+**How it works:**
+
+1. **`DeriveIden` macro**: Implements the `Iden` (identifier) trait that SeaORM uses for table/column names
+2. **Automatic naming**: Converts Rust `PascalCase` variants to SQL `snake_case`
+   - `DateTo` → `date_to`
+   - `CreatedAt` → `created_at`
+   - Enum name `Memos` → table name `memos`
+3. **Special `Table` variant**: Always present, represents the table itself
+4. **Type-safe references**: Use `Memos::DateTo` instead of magic string `"date_to"`
+
+**Why use this pattern?**
+
+- **Compiler catches typos**: `Memos::Titl` → compile error vs. `"titl"` → runtime error
+- **Refactoring support**: Rename a column in one place, IDE updates all references
+- **Autocomplete**: IDE knows what columns exist
+- **Foreign key safety**: When referencing other tables, you use their enums
+
+**Example usage:**
+
+```rust
+// Instead of:
+.col(ColumnDef::new("date_to").timestamp_with_time_zone())
+
+// You write:
+.col(ColumnDef::new(Memos::DateTo).timestamp_with_time_zone())
+```
+
+**Custom names (advanced):**
+
+If you need a name different from the automatic conversion:
+
+```rust
+#[derive(DeriveIden)]
+enum MyTable {
+    Table,
+    #[sea_orm(iden = "custom_column_name")]
+    MyColumn,
+}
+```
+
+**In later migrations:**
+
+When creating foreign keys to the `memos` table, you can define a minimal enum with just the fields you need:
+
+```rust
+#[derive(DeriveIden)]
+enum Memos {
+    Table,
+    Id,  // Only need this for foreign key reference
+}
+```
+
+This pattern keeps your migrations maintainable and prevents common SQL typos.
+
+---
+
+**Understanding Foreign Keys in Migrations**
+
+Foreign keys establish relationships between tables. Here's how they work in SeaORM migrations:
+
+**Basic Foreign Key Pattern:**
+
+```rust
+// In a migration creating a junction table (e.g., memo_tags)
+manager
+    .create_table(
+        Table::create()
+            .table(MemoTags::Table)
+            .col(ColumnDef::new(MemoTags::MemoId).uuid().not_null())
+            .col(ColumnDef::new(MemoTags::TagId).uuid().not_null())
+            .foreign_key(
+                ForeignKey::create()
+                    .name("fk_memo_tags_memo_id")           // Constraint name
+                    .from(MemoTags::Table, MemoTags::MemoId) // This table's column
+                    .to(Memos::Table, Memos::Id)            // Referenced table/column
+                    .on_delete(ForeignKeyAction::Cascade)   // What happens on delete
+                    .on_update(ForeignKeyAction::Cascade),  // What happens on update
+            )
+            .to_owned(),
+    )
+    .await?;
+```
+
+**Foreign Key Components:**
+
+1. **`.name("fk_...")`**: Optional but recommended constraint name
+   - Helps with debugging and explicit drops
+   - Convention: `fk_{table}_{column}`
+
+2. **`.from(Table, Column)`**: The foreign key column in the current table
+   - First argument: table being created (using its `::Table` variant)
+   - Second argument: the column holding the foreign key
+
+3. **`.to(Table, Column)`**: The referenced primary key
+   - First argument: parent table (using its `::Table` variant)
+   - Second argument: typically the `Id` column
+
+4. **`.on_delete(ForeignKeyAction)`**: Cascade behavior when parent is deleted
+   - `Cascade`: Delete this row when parent is deleted
+   - `Restrict`: Prevent parent deletion if children exist
+   - `SetNull`: Set foreign key to NULL when parent is deleted
+   - `SetDefault`: Set foreign key to default value
+   - `NoAction`: Do nothing (database handles it)
+
+5. **`.on_update(ForeignKeyAction)`**: Cascade behavior when parent key changes
+   - Same options as `on_delete`
+   - Usually `Cascade` to maintain referential integrity
+
+**Common Patterns:**
+
+**Many-to-Many Relationship (Junction Table):**
+
+```rust
+// Tags migration - memo_tags junction table
+#[derive(DeriveIden)]
+enum MemoTags {
+    Table,
+    MemoId,    // Foreign key to memos.id
+    TagId,     // Foreign key to tags.id
+}
+
+#[derive(DeriveIden)]
+enum Memos {
+    Table,
+    Id,        // Only need this for foreign key reference
+}
+
+#[derive(DeriveIden)]
+enum Tags {
+    Table,
+    Id,
+}
+
+// In the migration:
+.foreign_key(
+    ForeignKey::create()
+        .from(MemoTags::Table, MemoTags::MemoId)
+        .to(Memos::Table, Memos::Id)
+        .on_delete(ForeignKeyAction::Cascade)  // Delete tag association when memo deleted
+)
+.foreign_key(
+    ForeignKey::create()
+        .from(MemoTags::Table, MemoTags::TagId)
+        .to(Tags::Table, Tags::Id)
+        .on_delete(ForeignKeyAction::Cascade)  // Delete tag association when tag deleted
+)
+```
+
+**One-to-Many Relationship:**
+
+```rust
+// Example: Comments table with foreign key to memos
+#[derive(DeriveIden)]
+enum Comments {
+    Table,
+    Id,
+    MemoId,     // Foreign key to memos.id
+    Content,
+}
+
+.col(ColumnDef::new(Comments::MemoId).uuid().not_null())
+.foreign_key(
+    ForeignKey::create()
+        .from(Comments::Table, Comments::MemoId)
+        .to(Memos::Table, Memos::Id)
+        .on_delete(ForeignKeyAction::Cascade)  // Delete comments when memo deleted
+)
+```
+
+**Why use CASCADE for delete?**
+
+In the tags example:
+- When a memo is deleted, all `memo_tags` entries for it should be deleted automatically
+- When a tag is deleted, all `memo_tags` entries for it should be deleted automatically
+- This prevents orphaned records in the junction table
+
+**Why use RESTRICT?**
+
+Use `Restrict` when you want to prevent accidental deletion:
+
+```rust
+.on_delete(ForeignKeyAction::Restrict)  // Can't delete memo if it has comments
+```
+
+This forces explicit cleanup before allowing deletion.
+
+**Composite Primary Keys with Foreign Keys:**
+
+Junction tables often use composite primary keys:
+
+```rust
+.col(ColumnDef::new(MemoTags::MemoId).uuid().not_null())
+.col(ColumnDef::new(MemoTags::TagId).uuid().not_null())
+.primary_key(
+    Index::create()
+        .col(MemoTags::MemoId)
+        .col(MemoTags::TagId)
+)
+// Ensures each memo-tag pair appears only once
+```
+
+**Real-World Example from Chapter 18:**
+
+The tags feature uses a junction table with two foreign keys:
+
+```
+memos table          memo_tags (junction)       tags table
+┌──────────┐         ┌──────────────┐          ┌──────────┐
+│ id (PK)  │◄────────│ memo_id (FK) │          │ id (PK)  │
+│ title    │         │ tag_id  (FK) │─────────►│ name     │
+│ ...      │         └──────────────┘          │ ...      │
+└──────────┘         (PK: memo_id, tag_id)     └──────────┘
+```
+
+Both foreign keys cascade on delete, ensuring:
+- Deleting a memo removes all its tag associations
+- Deleting a tag removes all memo associations with it
+- The tags and memos tables remain clean
+
+**Migration Order Matters:**
+
+When creating tables with foreign keys:
+
+1. **Create parent tables first** (memos, tags)
+2. **Then create child tables** (memo_tags)
+
+When dropping tables:
+
+1. **Drop child tables first** (memo_tags)
+2. **Then drop parent tables** (memos, tags)
+
+```rust
+async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    // Drop in reverse order!
+    manager.drop_table(Table::drop().table(MemoTags::Table).to_owned()).await?;
+    manager.drop_table(Table::drop().table(Tags::Table).to_owned()).await?;
+    manager.drop_table(Table::drop().table(Memos::Table).to_owned()).await
+}
+```
+
+You'll see this pattern in action when we implement tags in Chapter 18.
+
+---
+
 3. **Register the migration** in `migration/src/lib.rs`:
 
 ```rust
