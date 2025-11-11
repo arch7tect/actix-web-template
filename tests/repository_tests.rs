@@ -245,11 +245,12 @@ async fn test_repository_find_all_sorting() {
 async fn test_tag_get_or_create_new() {
     let db = setup_test_db().await;
 
-    let result = TagRepository::get_or_create(&db, "urgent".to_string()).await;
+    let tag_name = format!("urgent-{}", uuid::Uuid::new_v4());
+    let result = TagRepository::get_or_create(&db, tag_name.clone()).await;
     assert!(result.is_ok());
 
     let tag = result.unwrap();
-    assert_eq!(tag.name, "urgent");
+    assert_eq!(tag.name, tag_name);
     assert!(!tag.id.is_nil());
 }
 
@@ -324,7 +325,8 @@ async fn test_tag_remove_all_from_memo() {
         .await
         .unwrap();
 
-    let tag = TagRepository::get_or_create(&db, "temp".to_string())
+    let tag_name = format!("temp-{}", uuid::Uuid::new_v4());
+    let tag = TagRepository::get_or_create(&db, tag_name)
         .await
         .unwrap();
     TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag.id])
@@ -356,7 +358,8 @@ async fn test_tag_get_all_with_counts() {
         .await
         .unwrap();
 
-    let tag = TagRepository::get_or_create(&db, "shared".to_string())
+    let tag_name = format!("shared-{}", uuid::Uuid::new_v4());
+    let tag = TagRepository::get_or_create(&db, tag_name.clone())
         .await
         .unwrap();
     TagRepository::assign_tags_to_memo(&db, memo1.id, vec![tag.id])
@@ -370,7 +373,7 @@ async fn test_tag_get_all_with_counts() {
     assert!(result.is_ok());
 
     let tags = result.unwrap();
-    let shared_tag = tags.iter().find(|(name, _)| name == "shared");
+    let shared_tag = tags.iter().find(|(name, _)| name == &tag_name);
     assert!(shared_tag.is_some());
     let (_, count) = shared_tag.unwrap();
     assert!(*count >= 2);
@@ -383,7 +386,8 @@ async fn test_tag_get_all_with_counts() {
 async fn test_tag_delete_unused() {
     let db = setup_test_db().await;
 
-    let tag = TagRepository::get_or_create(&db, "unused_tag".to_string())
+    let tag_name = format!("unused_tag-{}", uuid::Uuid::new_v4());
+    let tag = TagRepository::get_or_create(&db, tag_name.clone())
         .await
         .unwrap();
 
@@ -402,7 +406,7 @@ async fn test_tag_delete_unused() {
     assert!(result.is_ok());
 
     let tags = TagRepository::get_all_tags_with_counts(&db).await.unwrap();
-    let unused_exists = tags.iter().any(|(name, _)| name == "unused_tag");
+    let unused_exists = tags.iter().any(|(name, _)| name == &tag_name);
     assert!(!unused_exists);
 }
 
@@ -425,10 +429,13 @@ async fn test_repository_find_all_with_tag_filter() {
         .await
         .unwrap();
 
-    let tag1 = TagRepository::get_or_create(&db, "filter1".to_string())
+    let tag1_name = format!("filter1-{}", uuid::Uuid::new_v4());
+    let tag2_name = format!("filter2-{}", uuid::Uuid::new_v4());
+
+    let tag1 = TagRepository::get_or_create(&db, tag1_name.clone())
         .await
         .unwrap();
-    let tag2 = TagRepository::get_or_create(&db, "filter2".to_string())
+    let tag2 = TagRepository::get_or_create(&db, tag2_name.clone())
         .await
         .unwrap();
 
@@ -449,7 +456,7 @@ async fn test_repository_find_all_with_tag_filter() {
         None,
         "created_at",
         "desc",
-        Some(vec!["filter1".to_string()]),
+        Some(vec![tag1_name.clone()]),
     )
     .await;
     assert!(result.is_ok());
@@ -483,10 +490,13 @@ async fn test_repository_find_all_with_multiple_tag_filter_or_logic() {
         .await
         .unwrap();
 
-    let tag1 = TagRepository::get_or_create(&db, "or1".to_string())
+    let tag1_name = format!("or1-{}", uuid::Uuid::new_v4());
+    let tag2_name = format!("or2-{}", uuid::Uuid::new_v4());
+
+    let tag1 = TagRepository::get_or_create(&db, tag1_name.clone())
         .await
         .unwrap();
-    let tag2 = TagRepository::get_or_create(&db, "or2".to_string())
+    let tag2 = TagRepository::get_or_create(&db, tag2_name.clone())
         .await
         .unwrap();
 
@@ -504,7 +514,7 @@ async fn test_repository_find_all_with_multiple_tag_filter_or_logic() {
         None,
         "created_at",
         "desc",
-        Some(vec!["or1".to_string(), "or2".to_string()]),
+        Some(vec![tag1_name.clone(), tag2_name.clone()]),
     )
     .await;
     assert!(result.is_ok());
