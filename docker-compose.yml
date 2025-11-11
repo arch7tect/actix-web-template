@@ -39,12 +39,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      loki:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3737/health"]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 5s
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://host.docker.internal:3100/loki/api/v1/push"
+        loki-retries: "5"
+        loki-batch-size: "400"
 
   # Observability Stack
   # Access:

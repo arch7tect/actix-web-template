@@ -382,9 +382,9 @@ volumes:
   loki_data:
 ```
 
-**Also update the `app` service environment:**
+**Also update the `app` service:**
 
-Add the OTLP endpoint so the app knows where to send traces:
+Add the OTLP endpoint and Loki logging configuration:
 
 ```yaml
   app:
@@ -392,7 +392,26 @@ Add the OTLP endpoint so the app knows where to send traces:
     environment:
       # ... existing variables ...
       OTLP_ENDPOINT: http://jaeger:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      loki:
+        condition: service_started
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://host.docker.internal:3100/loki/api/v1/push"
+        loki-retries: "5"
+        loki-batch-size: "400"
 ```
+
+**What the logging configuration does:**
+- `driver: loki` - Uses the Loki Docker logging driver
+- `loki-url` - Where to send logs (using `host.docker.internal` to reach Loki from the container)
+- `loki-retries: "5"` - Retry failed log shipments up to 5 times
+- `loki-batch-size: "400"` - Batch up to 400 log entries before sending
+
+**Important:** Before starting the services, you need to install the Loki Docker driver plugin.
 
 ### Step 3: Create Prometheus Configuration
 
@@ -462,7 +481,22 @@ datasources:
     access: proxy
     url: http://jaeger:16686
     editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: 'loki'
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: false
+        filterBySpanID: false
 ```
+
+**What the Jaeger configuration does:**
+- `url: http://jaeger:16686` - Jaeger UI endpoint
+- `tracesToLogsV2` - Enables correlation between traces and logs
+  - Links from Jaeger traces to related logs in Loki
+  - Time window: 1 hour before and after the span
+  - Helps debug issues by viewing logs for specific traces
+
 
 **Create `observability/grafana/provisioning/dashboards/dashboards.yml`:**
 
@@ -489,6 +523,8 @@ This tells Grafana to:
 ### Step 5: Start the Observability Stack
 
 Now that everything is configured, let's start all the services.
+
+**Important note:** At this stage, logs won't flow to Loki yet because the Loki Docker driver plugin hasn't been installed. We'll set that up in Step 10.
 
 **Start all services:**
 
@@ -812,7 +848,28 @@ async fn main() -> anyhow::Result<()> {
 ctrlc = "0.8"
 ```
 
-### Step 10: Verify Tracing Works
+### Step 10: Install Loki Docker Driver Plugin
+
+Before starting the services, install the Loki Docker driver plugin so logs can be sent to Loki:
+
+```bash
+# Install Loki Docker driver plugin
+docker plugin install grafana/loki-docker-driver:2.9.3 --alias loki --grant-all-permissions
+
+# Verify installation
+docker plugin ls
+# Expected output should show: loki ... grafana/loki-docker-driver:2.9.3 ... true
+```
+
+**What this does:**
+- Installs the official Grafana Loki logging driver
+- Grants necessary permissions for the plugin to work
+- Creates an alias `loki` for easier reference
+- Enables Docker to send container logs directly to Loki
+
+**Note:** You only need to install this plugin once per Docker host. It persists across restarts.
+
+### Step 11: Verify Tracing Works
 
 **Rebuild and restart:**
 
@@ -823,7 +880,7 @@ docker-compose down
 # Rebuild app with new observability code
 docker-compose build app
 
-# Start everything
+# Start everything (this will now use Loki logging)
 docker-compose up -d
 
 # Wait for startup
@@ -852,7 +909,7 @@ Open http://localhost:16686 and:
 - Tags and logs
 - Latency breakdown
 
-### Step 11: Understanding Prometheus Metrics
+### Step 12: Understanding Prometheus Metrics
 
 **Access Prometheus:**
 
@@ -882,7 +939,7 @@ db_connections_active
 
 **Note:** The full Prometheus metrics implementation requires `actix-web-prom` middleware setup, which may not be fully configured yet. This is an optional enhancement.
 
-### Step 12: Exploring Grafana Dashboards
+### Step 13: Exploring Grafana Dashboards
 
 **Access Grafana:**
 
@@ -911,7 +968,7 @@ open http://localhost:3001
 5. Set panel title: "Request Rate"
 6. Click "Apply"
 
-### Step 13: Viewing Logs in Loki
+### Step 14: Viewing Logs in Loki
 
 **Loki** aggregates logs from all containers.
 
@@ -1009,6 +1066,40 @@ ls -R observability/grafana/provisioning/
 # Restart Grafana
 docker-compose restart grafana
 ```
+
+### Issue: No logs appearing in Loki
+
+**Cause:** Loki Docker driver plugin not installed or not configured
+
+**Solution:**
+
+```bash
+# 1. Check if Loki plugin is installed
+docker plugin ls
+# Should show: loki ... grafana/loki-docker-driver:2.9.3 ... true
+
+# 2. If not installed, install it:
+docker plugin install grafana/loki-docker-driver:2.9.3 --alias loki --grant-all-permissions
+
+# 3. Verify app container is using Loki driver
+docker inspect memos-app | jq '.[0].HostConfig.LogConfig'
+# Should show: {"Type": "loki", ...}
+
+# 4. If not using Loki driver, recreate the container
+docker-compose up -d --force-recreate app
+
+# 5. Test that logs are flowing to Loki
+curl -s "http://localhost:3100/loki/api/v1/labels" | jq
+# Should show labels including: container_name, compose_service, etc.
+
+# 6. Query logs from Loki
+curl -s -G "http://localhost:3100/loki/api/v1/query" \
+  --data-urlencode 'query={container_name="memos-app"}' \
+  --data-urlencode 'limit=5' | jq '.data.result'
+```
+
+**Note about Loki 404:**
+If you visit http://localhost:3100/ directly and see "404 page not found", this is expected behavior. Loki doesn't have a web UI at its root path - it's an API-only service. View logs through Grafana's Explore interface using the Loki datasource.
 
 ## Summary
 
