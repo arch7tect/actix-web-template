@@ -142,47 +142,6 @@ impl TagRepository {
         Ok(tags)
     }
 
-    /// Delete unused tags (tags with no memos) - DEPRECATED
-    ///
-    /// WARNING: This function has race conditions and should not be used in production.
-    /// It deletes ALL unused tags globally, which can interfere with concurrent operations.
-    ///
-    /// Instead, use scoped cleanup: get tag IDs for a specific memo, check if each is unused,
-    /// and delete only those tags within a transaction.
-    ///
-    /// This function is kept for backwards compatibility but will be removed in a future version.
-    #[deprecated(
-        since = "0.2.6",
-        note = "Use scoped tag cleanup instead to avoid race conditions"
-    )]
-    #[tracing::instrument(skip(db))]
-    pub async fn delete_unused_tags<C>(db: &C) -> Result<u64, DbErr>
-    where
-        C: ConnectionTrait,
-    {
-        use sea_orm::Statement;
-
-        let query = r#"
-            DELETE FROM tags
-            WHERE id NOT IN (
-                SELECT DISTINCT tag_id FROM memo_tags
-            )
-        "#;
-
-        let result = db
-            .execute(Statement::from_string(
-                sea_orm::DatabaseBackend::Postgres,
-                query,
-            ))
-            .await?;
-
-        let deleted_count = result.rows_affected();
-
-        tracing::warn!(count = deleted_count, "DEPRECATED: delete_unused_tags() called - use scoped cleanup instead");
-
-        Ok(deleted_count)
-    }
-
     /// Get tag IDs for a specific memo
     ///
     /// Returns tag IDs as a vector of UUIDs.
