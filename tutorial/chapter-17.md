@@ -577,74 +577,19 @@ pub async fn health(state: web::Data<AppState>) -> Result<HttpResponse, AppError
 }
 ```
 
-These `#[tracing::instrument]` macros automatically create spans!
+These `#[tracing::instrument]` macros automatically create spans! When we add OpenTelemetry in the next steps, these existing instrumentation points will automatically export traces to Jaeger.
 
-### Step 7: Generate Some Traffic
+### Step 7: Add OpenTelemetry Tracing (Implementation)
 
-Let's generate traffic to see in our observability tools.
+Currently, the app uses `tracing` for logging but doesn't export traces to Jaeger. Let's add OpenTelemetry to send traces.
 
-**Create some data:**
-
-```bash
-# Create several memos
-for i in {1..5}; do
-  curl -X POST http://localhost:3737/api/v1/memos \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"title\": \"Test Memo $i\",
-      \"description\": \"Generated for observability demo\",
-      \"date_to\": \"2025-12-31T12:00:00Z\"
-    }"
-done
-
-# List memos (multiple times)
-for i in {1..10}; do
-  curl -s http://localhost:3737/api/v1/memos?limit=10 > /dev/null
-done
-
-# Access health endpoint
-for i in {1..5}; do
-  curl -s http://localhost:3737/health > /dev/null
-done
-
-# Access web UI
-curl -s http://localhost:3737/ > /dev/null
-```
-
-### Step 8: Exploring Traces in Jaeger
-
-**Open Jaeger UI:**
-
-```bash
-# macOS
-open http://localhost:16686
-
-# Linux
-xdg-open http://localhost:16686
-
-# Or visit in browser
-# http://localhost:16686
-```
-
-**What you'll see:**
-
-1. **Service dropdown**: Select your service (if instrumented)
-2. **Operation dropdown**: Choose specific endpoints
-3. **Find Traces button**: Search for traces
-
-**Note:** If traces aren't showing, you need to add OpenTelemetry initialization (covered in next steps).
-
-### Step 9: Add OpenTelemetry Tracing (Implementation)
-
-Currently, the app uses `tracing` but doesn't export to Jaeger. Let's fix that.
-
-**Create `src/observability/mod.rs`:**
+**Create the observability module:**
 
 ```bash
 mkdir -p src/observability
 ```
 
-**File: `src/observability/mod.rs`**
+**Create `src/observability/mod.rs`:**
 
 ```rust
 use opentelemetry::trace::TracerProvider as _;
@@ -848,7 +793,7 @@ async fn main() -> anyhow::Result<()> {
 ctrlc = "0.8"
 ```
 
-### Step 10: Install Loki Docker Driver Plugin
+### Step 8: Install Loki Docker Driver Plugin
 
 Before starting the services, install the Loki Docker driver plugin so logs can be sent to Loki:
 
@@ -869,47 +814,7 @@ docker plugin ls
 
 **Note:** You only need to install this plugin once per Docker host. It persists across restarts.
 
-### Step 11: Verify Tracing Works
-
-**Rebuild and restart:**
-
-```bash
-# Stop services
-docker-compose down
-
-# Rebuild app with new observability code
-docker-compose build app
-
-# Start everything (this will now use Loki logging)
-docker-compose up -d
-
-# Wait for startup
-sleep 20
-```
-
-**Generate traffic:**
-
-```bash
-# Create some requests
-for i in {1..5}; do
-  curl -s http://localhost:3737/api/v1/memos > /dev/null
-done
-```
-
-**Check Jaeger:**
-
-Open http://localhost:16686 and:
-1. Select service: `actix-web-template`
-2. Click "Find Traces"
-3. You should see traces for your requests!
-
-**Click on a trace to see:**
-- Span timeline (how long each operation took)
-- Span hierarchy (which operations called which)
-- Tags and logs
-- Latency breakdown
-
-### Step 12: Add HTTP Metrics with actix-web-prom
+### Step 9: Add HTTP Metrics with actix-web-prom
 
 Add Prometheus middleware to automatically collect HTTP metrics.
 
@@ -946,21 +851,116 @@ App::new()
 ```
 
 This automatically exports HTTP metrics at `http://localhost:3737/metrics`:
-- `http_requests_total` - Total requests by method, endpoint, and status
-- `http_requests_duration_seconds` - Request duration histogram
-- `http_requests_in_progress` - Currently active requests
+- `actix_web_http_requests_total` - Total requests by method, endpoint, and status
+- `actix_web_http_requests_duration_seconds` - Request duration histogram
+- `actix_web_http_requests_in_progress` - Currently active requests
+
+**Note about metric names:** The prefix `actix_web_` comes from the name we specified in `PrometheusMetricsBuilder::new("actix_web")`. This helps distinguish your app's metrics from other services in a multi-service environment. If you see examples online using just `http_requests_total`, they're using a different prefix or no prefix.
+
+### Step 10: Build and Start Services
 
 **Rebuild and restart:**
 
 ```bash
-docker compose build app
-docker compose up -d
+# Stop services
+docker-compose down
+
+# Rebuild app with new observability code
+docker-compose build app
+
+# Start everything (this will now use Loki logging)
+docker-compose up -d
+
+# Wait for startup
+sleep 20
+
+# Check all services are running
+docker-compose ps
+```
+
+**Expected output:**
+```
+NAME              STATUS         PORTS
+memos-app         Up (healthy)   0.0.0.0:3737->3737/tcp
+memos-postgres    Up (healthy)   0.0.0.0:5432->5432/tcp
+memos-jaeger      Up             0.0.0.0:16686->16686/tcp, ...
+memos-prometheus  Up             0.0.0.0:9090->9090/tcp
+memos-grafana     Up             0.0.0.0:3001->3000/tcp
+memos-loki        Up             0.0.0.0:3100->3100/tcp
+```
+
+### Step 11: Generate Traffic
+
+Now that OpenTelemetry tracing and Prometheus metrics are integrated, let's generate some traffic to populate our observability tools.
+
+**Create some test data:**
+
+```bash
+# Create several memos
+for i in {1..5}; do
+  curl -X POST http://localhost:3737/api/v1/memos \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"title\": \"Test Memo $i\",
+      \"description\": \"Generated for observability demo\",
+      \"date_to\": \"2025-12-31T12:00:00Z\"
+    }"
+  sleep 0.5
+done
+
+# List memos (multiple times to generate metrics)
+for i in {1..10}; do
+  curl -s http://localhost:3737/api/v1/memos?limit=10 > /dev/null
+  sleep 0.2
+done
+
+# Access health endpoint
+for i in {1..5}; do
+  curl -s http://localhost:3737/health > /dev/null
+  sleep 0.2
+done
+
+# Access web UI
+curl -s http://localhost:3737/ > /dev/null
 ```
 
 **Test the metrics endpoint:**
 
 ```bash
-curl http://localhost:3737/metrics | grep http_requests
+curl http://localhost:3737/metrics | grep actix_web_http_requests
+```
+
+You should see metrics like:
+```
+actix_web_http_requests_total{endpoint="/api/v1/memos",method="GET",status="200"} 10
+actix_web_http_requests_total{endpoint="/api/v1/memos",method="POST",status="201"} 5
+actix_web_http_requests_duration_seconds_bucket{endpoint="/api/v1/memos",method="GET",...} 0.023
+```
+
+### Step 12: Verify Tracing in Jaeger
+
+**Check Jaeger:**
+
+Open http://localhost:16686 and:
+1. Select service: `actix-web-template`
+2. Click "Find Traces"
+3. You should see traces for your requests!
+
+**Click on a trace to see:**
+- Span timeline (how long each operation took)
+- Span hierarchy (which operations called which)
+- Tags and logs
+- Latency breakdown
+
+**Example trace structure:**
+```
+GET /api/v1/memos (200ms)
+  ├─ list_memos handler (195ms)
+  │   ├─ list_memos service (190ms)
+  │   │   └─ list_memos_paginated repository (185ms)
+  │   │       └─ Database query (180ms)
+  │   └─ Response serialization (5ms)
+  └─ Middleware processing (5ms)
 ```
 
 ### Step 13: Query Metrics in Prometheus
@@ -973,21 +973,69 @@ open http://localhost:9090
 
 Prometheus automatically scrapes metrics from your app's `/metrics` endpoint every 10 seconds (as configured in Step 3).
 
+**Where to use queries:**
+
+The PromQL queries below can be used in several places:
+
+1. **Prometheus UI (Graph page)**:
+   - Open http://localhost:9090
+   - Click on the "Graph" tab at the top
+   - Enter a query in the expression bar
+   - Click "Execute" to see results
+   - Switch between "Table" and "Graph" views
+
+2. **Grafana dashboards**:
+   - When creating panels in Grafana
+   - Select Prometheus as the datasource
+   - Enter queries in the query editor
+
+3. **Grafana Explore**:
+   - Click the "Explore" icon (compass) in Grafana
+   - Select Prometheus datasource
+   - Enter queries to explore your metrics
+
 **Common metrics to query:**
+
+Try these queries in the Prometheus UI at http://localhost:9090/graph:
 
 ```promql
 # Request rate (requests per second)
-rate(http_requests_total[1m])
+rate(actix_web_http_requests_total[1m])
 
-# Error rate
-rate(http_requests_total{status=~"5.."}[1m])
+# Error rate (5xx responses)
+rate(actix_web_http_requests_total{status=~"5.."}[1m])
 
-# Request duration (p95, p99)
-histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+# Request duration (p95 percentile)
+histogram_quantile(0.95, rate(actix_web_http_requests_duration_seconds_bucket[5m]))
+
+# Request duration (p99 percentile)
+histogram_quantile(0.99, rate(actix_web_http_requests_duration_seconds_bucket[5m]))
 
 # Requests by endpoint
-sum by (endpoint) (rate(http_requests_total[5m]))
+sum by (endpoint) (rate(actix_web_http_requests_total[5m]))
+
+# Total requests in last 5 minutes
+sum(increase(actix_web_http_requests_total[5m]))
+
+# Average request duration by endpoint
+rate(actix_web_http_requests_duration_seconds_sum[5m]) / rate(actix_web_http_requests_duration_seconds_count[5m])
+
+# Requests in progress (current load)
+actix_web_http_requests_in_progress
+
+# Success rate (non-error responses)
+sum(rate(actix_web_http_requests_total{status!~"5.."}[5m])) / sum(rate(actix_web_http_requests_total[5m])) * 100
 ```
+
+**How to use in Prometheus:**
+
+1. Open http://localhost:9090
+2. Go to the "Graph" tab
+3. Copy one of the queries above
+4. Paste it into the expression bar
+5. Click "Execute"
+6. View results in Table or Graph view
+7. Adjust the time range using the time picker
 
 ### Step 14: Exploring Grafana Dashboards
 
@@ -1014,9 +1062,14 @@ open http://localhost:3001
 1. Click "+" → "Dashboard"
 2. Add panel
 3. Select Prometheus datasource
-4. Enter query: `rate(http_requests_total[1m])`
+4. Enter query: `rate(actix_web_http_requests_total[1m])`
 5. Set panel title: "Request Rate"
 6. Click "Apply"
+
+**Additional panel ideas:**
+- Error rate: `rate(actix_web_http_requests_total{status=~"5.."}[5m])`
+- P95 latency: `histogram_quantile(0.95, rate(actix_web_http_requests_duration_seconds_bucket[5m]))`
+- Requests by endpoint: `sum by (endpoint) (rate(actix_web_http_requests_total[5m]))`
 
 ### Step 15: Viewing Logs in Loki
 
@@ -1070,8 +1123,8 @@ curl -s "http://localhost:3001/api/health" | jq
 # Expected: {"database": "ok"}
 
 # 6. Verify metrics endpoint (actix-web-prom)
-curl -s "http://localhost:3737/metrics" | grep http_requests_total
-# Expected: http_requests_total metrics with labels
+curl -s "http://localhost:3737/metrics" | grep actix_web_http_requests_total
+# Expected: actix_web_http_requests_total metrics with labels
 ```
 
 ## Common Issues and Solutions
