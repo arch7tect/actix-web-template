@@ -169,7 +169,8 @@ impl MemoService {
             _ => AppError::Database(e),
         })?;
 
-        // Update tags: remove all existing and add new ones
+        // Update tags: get old tags, remove all existing and add new ones
+        let old_tag_ids = TagRepository::get_tag_ids_for_memo(&txn, id).await?;
         TagRepository::remove_all_tags_from_memo(&txn, id).await?;
 
         if !dto.tags.is_empty() {
@@ -182,8 +183,14 @@ impl MemoService {
             TagRepository::assign_tags_to_memo(&txn, id, tag_ids).await?;
         }
 
-        // Clean up unused tags
-        TagRepository::delete_unused_tags(&txn).await?;
+        // Clean up tags that were removed from this memo (only if they're now unused)
+        for tag_id in old_tag_ids {
+            let count = TagRepository::count_memos_with_tag(&txn, tag_id).await?;
+            if count == 0 {
+                TagRepository::delete_tag(&txn, tag_id).await?;
+                tracing::debug!(tag_id = %tag_id, "Deleted unused tag after update");
+            }
+        }
 
         // Commit transaction - all operations succeed or all fail
         txn.commit().await.map_err(AppError::Database)?;
@@ -232,6 +239,7 @@ impl MemoService {
 
         // Update tags if provided
         if let Some(new_tags) = dto.tags {
+            let old_tag_ids = TagRepository::get_tag_ids_for_memo(&txn, id).await?;
             TagRepository::remove_all_tags_from_memo(&txn, id).await?;
 
             if !new_tags.is_empty() {
@@ -245,8 +253,14 @@ impl MemoService {
                 TagRepository::assign_tags_to_memo(&txn, id, tag_ids).await?;
             }
 
-            // Clean up unused tags
-            TagRepository::delete_unused_tags(&txn).await?;
+            // Clean up tags that were removed from this memo (only if they're now unused)
+            for tag_id in old_tag_ids {
+                let count = TagRepository::count_memos_with_tag(&txn, tag_id).await?;
+                if count == 0 {
+                    TagRepository::delete_tag(&txn, tag_id).await?;
+                    tracing::debug!(tag_id = %tag_id, "Deleted unused tag after patch");
+                }
+            }
 
             tracing::debug!(memo_id = %memo.id, "Tags updated during patch");
         }
@@ -264,17 +278,34 @@ impl MemoService {
 
     #[tracing::instrument(skip(self), fields(memo_id = %id))]
     pub async fn delete_memo(&self, id: Uuid) -> Result<(), AppError> {
+        use sea_orm::TransactionTrait;
+
         tracing::debug!("Deleting memo");
 
-        let deleted = MemoRepository::delete(&self.db, id).await?;
+        // Use transaction to ensure atomic deletion of memo and cleanup of tags
+        let txn = self.db.begin().await?;
+
+        // Get tags associated with this memo before deletion
+        let tag_ids = TagRepository::get_tag_ids_for_memo(&txn, id).await?;
+
+        // Delete memo (cascades to memo_tags)
+        let deleted = MemoRepository::delete(&txn, id).await?;
 
         if !deleted {
             tracing::warn!("Memo not found for deletion");
             return Err(AppError::NotFound(format!("Memo with id {} not found", id)));
         }
 
-        // Clean up unused tags after deletion
-        TagRepository::delete_unused_tags(&self.db).await?;
+        // Delete tags that are now unused (only the ones that were associated with this memo)
+        for tag_id in tag_ids {
+            let count = TagRepository::count_memos_with_tag(&txn, tag_id).await?;
+            if count == 0 {
+                TagRepository::delete_tag(&txn, tag_id).await?;
+                tracing::debug!(tag_id = %tag_id, "Deleted unused tag");
+            }
+        }
+
+        txn.commit().await?;
 
         tracing::info!("Memo deleted successfully, cleaned up unused tags");
 

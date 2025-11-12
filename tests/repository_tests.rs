@@ -401,12 +401,17 @@ async fn test_tag_delete_unused() {
 
     MemoRepository::delete(&db, memo.id).await.unwrap();
 
-    let result = TagRepository::delete_unused_tags(&db).await;
+    let tags_for_memo = TagRepository::get_tags_for_memo(&db, memo.id)
+        .await
+        .unwrap();
+    assert_eq!(tags_for_memo.len(), 0);
+
+    let result = TagRepository::delete_tag(&db, tag.id).await;
     assert!(result.is_ok());
 
     let tags = TagRepository::get_all_tags_with_counts(&db).await.unwrap();
-    let unused_exists = tags.iter().any(|(name, _)| name == &tag_name);
-    assert!(!unused_exists);
+    let tag_exists = tags.iter().any(|(name, _)| name == &tag_name);
+    assert!(!tag_exists);
 }
 
 #[tokio::test]

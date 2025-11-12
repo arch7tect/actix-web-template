@@ -752,30 +752,45 @@ impl TagRepository {
         Ok(tags)
     }
 
-    /// Delete unused tags (tags with no memos)
-    #[tracing::instrument(skip(db))]
-    pub async fn delete_unused_tags(db: &DatabaseConnection) -> Result<u64, DbErr> {
-        use sea_orm::{ConnectionTrait, Statement};
+    /// Get tag IDs for a specific memo
+    pub async fn get_tag_ids_for_memo<C>(db: &C, memo_id: Uuid) -> Result<Vec<Uuid>, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let tag_ids = MemoTags::find()
+            .filter(memo_tags::Column::MemoId.eq(memo_id))
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|mt| mt.tag_id)
+            .collect();
 
-        let query = r#"
-            DELETE FROM tags
-            WHERE id NOT IN (
-                SELECT DISTINCT tag_id FROM memo_tags
-            )
-        "#;
+        Ok(tag_ids)
+    }
 
-        let result = db
-            .execute(Statement::from_string(
-                sea_orm::DatabaseBackend::Postgres,
-                query,
-            ))
+    /// Count how many memos are using a specific tag
+    pub async fn count_memos_with_tag<C>(db: &C, tag_id: Uuid) -> Result<u64, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let count = MemoTags::find()
+            .filter(memo_tags::Column::TagId.eq(tag_id))
+            .count(db)
             .await?;
 
-        let deleted_count = result.rows_affected();
+        Ok(count)
+    }
 
-        tracing::info!(count = deleted_count, "Deleted unused tags");
+    /// Delete a specific tag by ID
+    pub async fn delete_tag<C>(db: &C, tag_id: Uuid) -> Result<(), DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        tags::Entity::delete_by_id(tag_id).exec(db).await?;
 
-        Ok(deleted_count)
+        tracing::debug!(tag_id = %tag_id, "Deleted tag");
+
+        Ok(())
     }
 }
 ```
@@ -868,201 +883,6 @@ use crate::{
 **Update `create_memo` method:**
 
 ```rust
-#[tracing::instrument(skip(self, dto), fields(has_description = dto.description.is_some(), tag_count = dto.tags.len()))]
-pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, AppError> {
-    dto.validate()?;
-
-    let sanitized_title = sanitize_html(&dto.title);
-    let sanitized_description = sanitize_optional_html(dto.description.as_deref());
-
-    tracing::debug!(
-        title = %sanitized_title,
-        tag_count = dto.tags.len(),
-        "Creating new memo with sanitized input"
-    );
-
-    let memo = MemoRepository::create(
-        &self.db,
-        sanitized_title,
-        sanitized_description,
-        dto.date_to,
-    )
-    .await?;
-
-    // Handle tags if provided
-    if !dto.tags.is_empty() {
-        let mut tag_ids = Vec::new();
-        for tag_name in &dto.tags {
-            let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
-            tag_ids.push(tag.id);
-        }
-
-        TagRepository::assign_tags_to_memo(&self.db, memo.id, tag_ids).await?;
-
-        tracing::debug!(memo_id = %memo.id, tag_count = dto.tags.len(), "Tags assigned to memo");
-    }
-
-    tracing::info!(memo_id = %memo.id, "Memo created successfully with tags");
-
-    // Load tags for response
-    let tags = TagRepository::get_tags_for_memo(&self.db, memo.id).await?;
-
-    Ok(Self::entity_to_dto_with_tags(memo, tags))
-}
-```
-
-**Key changes:**
-- Check if tags provided in DTO
-- Loop through tag names, get or create each tag
-- Collect tag IDs
-- Assign all tags to the memo
-- Load tags for response DTO
-
-**Update `update_memo` method:**
-
-```rust
-pub async fn update_memo(
-    &self,
-    id: Uuid,
-    dto: UpdateMemoDto,
-) -> Result<MemoResponseDto, AppError> {
-    dto.validate()?;
-
-    let sanitized_title = sanitize_html(&dto.title);
-    let sanitized_description = sanitize_optional_html(dto.description.as_deref());
-
-    let memo = MemoRepository::update(
-        &self.db,
-        id,
-        sanitized_title,
-        sanitized_description,
-        dto.date_to,
-        dto.completed,
-    )
-    .await
-    .map_err(|e| match e {
-        sea_orm::DbErr::RecordNotFound(_) => {
-            AppError::NotFound(format!("Memo with id {} not found", id))
-        }
-        _ => AppError::Database(e),
-    })?;
-
-    // Update tags: remove all existing and add new ones
-    TagRepository::remove_all_tags_from_memo(&self.db, id).await?;
-
-    if !dto.tags.is_empty() {
-        let mut tag_ids = Vec::new();
-        for tag_name in &dto.tags {
-            let tag = TagRepository::get_or_create(&self.db, tag_name.trim().to_string()).await?;
-            tag_ids.push(tag.id);
-        }
-
-        TagRepository::assign_tags_to_memo(&self.db, id, tag_ids).await?;
-    }
-
-    // Clean up unused tags
-    TagRepository::delete_unused_tags(&self.db).await?;
-
-    tracing::info!(memo_id = %memo.id, "Memo updated successfully with tags");
-
-    // Load tags for response
-    let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
-
-    Ok(Self::entity_to_dto_with_tags(memo, tags))
-}
-```
-
-**Tag update strategy:**
-1. Remove all existing tag associations
-2. Add new tag associations
-3. Clean up any orphaned tags
-4. Load tags for response
-
-### 5.1: Add Transaction Support for Data Integrity
-
-**The Problem:**
-
-The code above has a potential issue - what if one operation succeeds but another fails?
-
-```rust
-// Without transactions:
-let memo = MemoRepository::create(&self.db, ...).await?;  // ✅ succeeds
-assign_tags_to_memo(&self.db, memo.id, ...).await?;       // ❌ fails → memo without tags!
-```
-
-**The Solution: Database Transactions**
-
-Wrap multi-step operations in transactions to ensure atomicity - all operations succeed together or fail together.
-
-**Update Repository Methods to Support Transactions:**
-
-First, make repository methods generic to work with both `DatabaseConnection` and `DatabaseTransaction`:
-
-**File: `src/repository/tag_repository.rs`**
-
-Update imports:
-```rust
-use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter,
-    Set,
-};
-```
-
-Update ALL method signatures to use generic `ConnectionTrait`:
-
-```rust
-pub async fn get_or_create<C>(db: &C, name: String) -> Result<tags::Model, DbErr>
-where
-    C: ConnectionTrait,
-{
-    // method body unchanged
-}
-
-pub async fn assign_tags_to_memo<C>(
-    db: &C,
-    memo_id: Uuid,
-    tag_ids: Vec<Uuid>,
-) -> Result<(), DbErr>
-where
-    C: ConnectionTrait,
-{
-    // method body unchanged
-}
-
-// Apply same pattern to:
-// - remove_all_tags_from_memo
-// - get_tags_for_memo
-// - get_all_tags_with_counts
-// - delete_unused_tags
-```
-
-**File: `src/repository/memo_repository.rs`**
-
-Update ALL methods similarly:
-
-```rust
-pub async fn create<C>(
-    db: &C,
-    title: String,
-    description: Option<String>,
-    date_to: DateTime<Utc>,
-) -> Result<memos::Model, DbErr>
-where
-    C: ConnectionTrait,
-{
-    // method body unchanged
-}
-
-// Apply same pattern to: find_all, find_by_id, update, delete
-```
-
-**Update Service Layer to Use Transactions:**
-
-Now update `src/services/memo_service.rs` to wrap operations in transactions:
-
-**create_memo with Transaction:**
-
-```rust
 pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, AppError> {
     use sea_orm::TransactionTrait;
 
@@ -1071,11 +891,17 @@ pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, A
     let sanitized_title = sanitize_html(&dto.title);
     let sanitized_description = sanitize_optional_html(dto.description.as_deref());
 
+    tracing::debug!(
+        title = %sanitized_title,
+        tag_count = dto.tags.len(),
+        "Creating new memo with sanitized input in transaction"
+    );
+
     // Start a transaction for atomic memo + tags creation
     let txn = self.db.begin().await.map_err(AppError::Database)?;
 
     let memo = MemoRepository::create(
-        &txn,  // Use transaction, not self.db
+        &txn,
         sanitized_title,
         sanitized_description,
         dto.date_to,
@@ -1091,19 +917,29 @@ pub async fn create_memo(&self, dto: CreateMemoDto) -> Result<MemoResponseDto, A
         }
 
         TagRepository::assign_tags_to_memo(&txn, memo.id, tag_ids).await?;
+
+        tracing::debug!(memo_id = %memo.id, tag_count = dto.tags.len(), "Tags assigned to memo");
     }
 
-    // Commit transaction - all operations succeed or all fail
+    // Commit transaction - both memo and tags created atomically
     txn.commit().await.map_err(AppError::Database)?;
 
-    // Load tags for response (outside transaction - read-only)
+    tracing::info!(memo_id = %memo.id, "Memo created successfully with tags");
+
+    // Load tags for response
     let tags = TagRepository::get_tags_for_memo(&self.db, memo.id).await?;
 
     Ok(Self::entity_to_dto_with_tags(memo, tags))
 }
 ```
 
-**update_memo with Transaction:**
+**Key changes:**
+- Use transaction for atomic creation
+- Pass `&txn` to all repository operations
+- Commit transaction to persist both memo and tags
+- Ensures memo and tags are created together or not at all
+
+**Update `update_memo` method:**
 
 ```rust
 pub async fn update_memo(
@@ -1118,8 +954,8 @@ pub async fn update_memo(
     let sanitized_title = sanitize_html(&dto.title);
     let sanitized_description = sanitize_optional_html(dto.description.as_deref());
 
-    // Start a transaction for atomic update + tags replacement
-    let txn = self.db.begin().await.map_err(AppError::Database)?;
+    // Use transaction for atomic update with tag cleanup
+    let txn = self.db.begin().await?;
 
     let memo = MemoRepository::update(
         &txn,
@@ -1137,6 +973,9 @@ pub async fn update_memo(
         _ => AppError::Database(e),
     })?;
 
+    // Get old tag IDs before making changes
+    let old_tag_ids = TagRepository::get_tag_ids_for_memo(&txn, id).await?;
+
     // Update tags: remove all existing and add new ones
     TagRepository::remove_all_tags_from_memo(&txn, id).await?;
 
@@ -1150,11 +989,18 @@ pub async fn update_memo(
         TagRepository::assign_tags_to_memo(&txn, id, tag_ids).await?;
     }
 
-    // Clean up unused tags
-    TagRepository::delete_unused_tags(&txn).await?;
+    // Clean up tags that were removed from this memo (only if they're now unused)
+    for tag_id in old_tag_ids {
+        let count = TagRepository::count_memos_with_tag(&txn, tag_id).await?;
+        if count == 0 {
+            TagRepository::delete_tag(&txn, tag_id).await?;
+            tracing::debug!(tag_id = %tag_id, "Deleted unused tag after update");
+        }
+    }
 
-    // Commit transaction
-    txn.commit().await.map_err(AppError::Database)?;
+    txn.commit().await?;
+
+    tracing::info!(memo_id = %memo.id, "Memo updated successfully with tags");
 
     // Load tags for response
     let tags = TagRepository::get_tags_for_memo(&self.db, id).await?;
@@ -1163,99 +1009,12 @@ pub async fn update_memo(
 }
 ```
 
-Apply the same pattern to `patch_memo` method.
-
-**Why Transactions Matter:**
-
-✅ **Atomicity**: All operations succeed together or fail together
-✅ **Consistency**: No partial state (memo without tags)
-✅ **Data Integrity**: Prevents orphaned records
-✅ **Production-Ready**: Proper error handling with automatic rollback
-
-**Transaction Flow:**
-
-1. `txn = db.begin()` - Start transaction
-2. Perform multiple database operations using `&txn`
-3. If any operation fails (returns `Err`), transaction automatically rolls back
-4. `txn.commit()` - Commit all changes atomically
-5. Read-only operations (like loading tags for response) can happen outside transaction
-
-**Update `get_all_memos` to load tags:**
-
-```rust
-pub async fn get_all_memos(
-    &self,
-    params: PaginationParams,
-) -> Result<PaginatedResponse<MemoResponseDto>, AppError> {
-    params.validate()?;
-    params.validate_order()?;
-
-    let limit = params.limit.unwrap_or(10);
-    let offset = params.offset.unwrap_or(0);
-    let sort_by = params.sort_by.as_deref().unwrap_or("created_at");
-    let order = params.order.as_deref().unwrap_or("desc");
-
-    let tag_filter = params.parse_tags();  // Parse tags from query params
-
-    let (memos, total) = MemoRepository::find_all(
-        &self.db,
-        limit,
-        offset,
-        params.completed,
-        sort_by,
-        order,
-        tag_filter,  // Pass tag filter to repository
-    )
-    .await?;
-
-    // Load tags for each memo
-    let mut memo_dtos = Vec::new();
-    for memo in memos {
-        let tags = TagRepository::get_tags_for_memo(&self.db, memo.id).await?;
-        memo_dtos.push(Self::entity_to_dto_with_tags(memo, tags));
-    }
-
-    tracing::info!(count = memo_dtos.len(), total, "Successfully fetched memos with tags");
-
-    Ok(PaginatedResponse::new(memo_dtos, total, limit, offset))
-}
-```
-
-**Add helper method:**
-
-```rust
-fn entity_to_dto_with_tags(entity: memos::Model, tags: Vec<String>) -> MemoResponseDto {
-    MemoResponseDto {
-        id: entity.id,
-        title: entity.title,
-        description: entity.description,
-        date_to: entity.date_to.into(),
-        completed: entity.completed,
-        created_at: entity.created_at.into(),
-        updated_at: entity.updated_at.into(),
-        tags,  // Include tags in response
-    }
-}
-```
-
-**Update `delete_memo` to cleanup tags:**
-
-```rust
-pub async fn delete_memo(&self, id: Uuid) -> Result<(), AppError> {
-    let deleted = MemoRepository::delete(&self.db, id).await?;
-
-    if !deleted {
-        return Err(AppError::NotFound(format!("Memo with id {} not found", id)));
-    }
-
-    // Clean up unused tags after deletion (CASCADE already removed memo_tags entries)
-    TagRepository::delete_unused_tags(&self.db).await?;
-
-    tracing::info!("Memo deleted successfully, cleaned up unused tags");
-
-    Ok(())
-}
-```
+**Tag update strategy:**
+1. Capture old tag IDs before changes
+2. Remove all existing tag associations
+3. Add new tag associations
+4. Clean up tags that were removed from THIS memo (if now unused)
+5. Load tags for response
 
 ## Step 6: Create Tags Listing Endpoint
 

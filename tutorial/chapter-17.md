@@ -909,7 +909,61 @@ Open http://localhost:16686 and:
 - Tags and logs
 - Latency breakdown
 
-### Step 12: Understanding Prometheus Metrics
+### Step 12: Add HTTP Metrics with actix-web-prom
+
+Add Prometheus middleware to automatically collect HTTP metrics.
+
+**Update `src/main.rs`:**
+
+Add the import at the top:
+
+```rust
+use actix_web_prom::PrometheusMetricsBuilder;
+```
+
+Initialize the Prometheus middleware before creating `AppState`:
+
+```rust
+tracing::info!("Initializing Prometheus metrics exporter");
+let prometheus = PrometheusMetricsBuilder::new("actix_web")
+    .endpoint("/metrics")
+    .build()
+    .unwrap();
+
+let state = AppState::new(settings.clone(), db);
+```
+
+Register the middleware in the App builder (before other middleware):
+
+```rust
+App::new()
+    .app_data(web::Data::new(state.clone()))
+    .app_data(web::JsonConfig::default().limit(state.config.api.max_request_size))
+    .app_data(web::PayloadConfig::default().limit(state.config.api.max_request_size))
+    .wrap(prometheus.clone())  // Add this line
+    .wrap(Compress::default())
+    // ... other middleware
+```
+
+This automatically exports HTTP metrics at `http://localhost:3737/metrics`:
+- `http_requests_total` - Total requests by method, endpoint, and status
+- `http_requests_duration_seconds` - Request duration histogram
+- `http_requests_in_progress` - Currently active requests
+
+**Rebuild and restart:**
+
+```bash
+docker compose build app
+docker compose up -d
+```
+
+**Test the metrics endpoint:**
+
+```bash
+curl http://localhost:3737/metrics | grep http_requests
+```
+
+### Step 13: Query Metrics in Prometheus
 
 **Access Prometheus:**
 
@@ -917,9 +971,7 @@ Open http://localhost:16686 and:
 open http://localhost:9090
 ```
 
-**If metrics endpoint is configured, you'll see:**
-
-Prometheus scrapes metrics from `http://memos-app:3737/metrics` (configured in `observability/prometheus.yml`).
+Prometheus automatically scrapes metrics from your app's `/metrics` endpoint every 10 seconds (as configured in Step 3).
 
 **Common metrics to query:**
 
@@ -933,13 +985,11 @@ rate(http_requests_total{status=~"5.."}[1m])
 # Request duration (p95, p99)
 histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
 
-# Active database connections
-db_connections_active
+# Requests by endpoint
+sum by (endpoint) (rate(http_requests_total[5m]))
 ```
 
-**Note:** The full Prometheus metrics implementation requires `actix-web-prom` middleware setup, which may not be fully configured yet. This is an optional enhancement.
-
-### Step 13: Exploring Grafana Dashboards
+### Step 14: Exploring Grafana Dashboards
 
 **Access Grafana:**
 
@@ -954,7 +1004,7 @@ open http://localhost:3001
 - Alerts and notifications
 - Variables and templating
 
-**Pre-configured datasources** (in `observability/grafana/provisioning/`):
+**Datasources** (configured in Step 4):
 - Prometheus (metrics)
 - Loki (logs)
 - Jaeger (traces)
@@ -968,7 +1018,7 @@ open http://localhost:3001
 5. Set panel title: "Request Rate"
 6. Click "Apply"
 
-### Step 14: Viewing Logs in Loki
+### Step 15: Viewing Logs in Loki
 
 **Loki** aggregates logs from all containers.
 
@@ -1018,6 +1068,10 @@ curl -s "http://localhost:9090/api/v1/targets" | jq '.data.activeTargets[].label
 # 5. Check Grafana health
 curl -s "http://localhost:3001/api/health" | jq
 # Expected: {"database": "ok"}
+
+# 6. Verify metrics endpoint (actix-web-prom)
+curl -s "http://localhost:3737/metrics" | grep http_requests_total
+# Expected: http_requests_total metrics with labels
 ```
 
 ## Common Issues and Solutions
