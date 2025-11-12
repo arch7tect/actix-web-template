@@ -288,8 +288,9 @@ async fn test_tag_assign_to_memo() {
         .await
         .unwrap();
 
-    let result = TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag1.id, tag2.id]).await;
-    assert!(result.is_ok());
+    TagRepository::assign_tags_to_memo(&db, memo.id, vec![tag1.id, tag2.id])
+        .await
+        .expect("Failed to assign tags to memo");
 
     let tags = TagRepository::get_tags_for_memo(&db, memo.id)
         .await
