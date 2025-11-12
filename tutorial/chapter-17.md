@@ -1095,9 +1095,27 @@ open http://localhost:3001
 # Logs from specific endpoint
 {container_name="memos-app"} |= "/api/v1/memos"
 
+# Exclude health check endpoints (reduces noise)
+{container_name="memos-app"} != "/health" != "/ready"
+
+# Exclude health checks using regex
+{container_name="memos-app"} !~ "/health|/ready"
+
+# Only show non-GET requests (POST, PUT, PATCH, DELETE)
+{container_name="memos-app"} !~ "GET"
+
 # Rate of error logs
 rate({container_name="memos-app"} |= "error" [5m])
+
+# All logs except health checks and static files
+{container_name="memos-app"} !~ "/health|/ready|/static"
 ```
+
+**Filter operators:**
+- `|=` - Contains (line filter)
+- `!=` - Does not contain
+- `|~` - Regex match
+- `!~` - Regex does not match
 
 ## Checkpoint
 
