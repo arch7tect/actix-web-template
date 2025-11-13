@@ -7,18 +7,15 @@ pub struct MemoRepository;
 
 impl MemoRepository {
     #[tracing::instrument(skip(db), fields(limit, offset, completed, sort_by, order, tag_count = tag_names.as_ref().map(|t| t.len())))]
-    pub async fn find_all<C>(
-        db: &C,
+    pub async fn find_all(
+        db: &impl ConnectionTrait,
         limit: u64,
         offset: u64,
         completed: Option<bool>,
         sort_by: &str,
         order: &str,
         tag_names: Option<Vec<String>>,
-    ) -> Result<(Vec<memos::Model>, u64), DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    ) -> Result<(Vec<memos::Model>, u64), DbErr> {
         tracing::debug!(
             limit,
             offset,
@@ -91,10 +88,10 @@ impl MemoRepository {
     }
 
     #[tracing::instrument(skip(db), fields(memo_id = %id))]
-    pub async fn find_by_id<C>(db: &C, id: Uuid) -> Result<Option<memos::Model>, DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    pub async fn find_by_id(
+        db: &impl ConnectionTrait,
+        id: Uuid,
+    ) -> Result<Option<memos::Model>, DbErr> {
         tracing::debug!("Finding memo by ID");
 
         let memo = Memos::find_by_id(id).one(db).await?;
@@ -109,15 +106,12 @@ impl MemoRepository {
     }
 
     #[tracing::instrument(skip(db), fields(title, has_description = description.is_some()))]
-    pub async fn create<C>(
-        db: &C,
+    pub async fn create(
+        db: &impl ConnectionTrait,
         title: String,
         description: Option<String>,
         date_to: DateTime<Utc>,
-    ) -> Result<memos::Model, DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    ) -> Result<memos::Model, DbErr> {
         tracing::debug!("Creating new memo");
 
         let now = Utc::now();
@@ -141,17 +135,14 @@ impl MemoRepository {
     }
 
     #[tracing::instrument(skip(db), fields(memo_id = %id, has_description = description.is_some(), completed))]
-    pub async fn update<C>(
-        db: &C,
+    pub async fn update(
+        db: &impl ConnectionTrait,
         id: Uuid,
         title: String,
         description: Option<String>,
         date_to: DateTime<Utc>,
         completed: bool,
-    ) -> Result<memos::Model, DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    ) -> Result<memos::Model, DbErr> {
         tracing::debug!("Updating memo");
 
         let memo = Memos::find_by_id(id).one(db).await?;
@@ -179,10 +170,7 @@ impl MemoRepository {
     }
 
     #[tracing::instrument(skip(db), fields(memo_id = %id))]
-    pub async fn delete<C>(db: &C, id: Uuid) -> Result<bool, DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    pub async fn delete(db: &impl ConnectionTrait, id: Uuid) -> Result<bool, DbErr> {
         tracing::debug!("Deleting memo");
 
         let memo = Memos::find_by_id(id).one(db).await?;

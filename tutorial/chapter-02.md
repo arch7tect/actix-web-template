@@ -1120,11 +1120,45 @@ Should compile without errors.
 1. **Create `src/utils/database.rs`**:
 
 ```rust
-use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr, Statement, ConnectionTrait};
 use std::time::Duration;
 use crate::config::Settings;
 
 /// Establish database connection with connection pool
+///
+/// **Connection Pool Configuration:**
+///
+/// This function configures a connection pool that manages database connections efficiently:
+///
+/// - **max_connections**: Maximum concurrent connections (default: 10)
+///   - Limits resource usage on the database server
+///   - Prevents overwhelming the database with too many connections
+///   - Adjust based on your database server capacity and application load
+///
+/// - **min_connections**: Minimum idle connections kept alive (default: 2)
+///   - Pre-warmed connections ready for immediate use
+///   - Reduces latency for the first requests after quiet periods
+///   - Trade-off: uses database resources even when idle
+///
+/// - **connect_timeout**: How long to wait when establishing a connection (default: 30s)
+///   - Prevents hanging indefinitely if database is unreachable
+///   - Should be long enough for network delays but short enough to fail fast
+///
+/// - **idle_timeout**: Close idle connections after this duration (default: 600s / 10min)
+///   - Prevents accumulating stale connections
+///   - Balances keeping connections warm vs. freeing resources
+///
+/// **How the connection pool works:**
+///
+/// ```text
+/// Request arrives → Check pool → Connection available? → Use it
+///                              ↓
+///                              No connections available
+///                              ↓
+///                              Pool at max? → Wait for one to free up
+///                              ↓
+///                              Create new connection → Use it
+/// ```
 pub async fn establish_connection(settings: &Settings) -> Result<DatabaseConnection, DbErr> {
     let mut opt = ConnectOptions::new(&settings.database.url);
 
@@ -1132,8 +1166,8 @@ pub async fn establish_connection(settings: &Settings) -> Result<DatabaseConnect
         .min_connections(settings.database.min_connections)
         .connect_timeout(Duration::from_secs(settings.database.connect_timeout))
         .idle_timeout(Duration::from_secs(settings.database.idle_timeout))
-        .sqlx_logging(true)
-        .sqlx_logging_level(log::LevelFilter::Debug);
+        .sqlx_logging(true)  // Enable SQL query logging (disable in production for performance)
+        .sqlx_logging_level(log::LevelFilter::Debug);  // Log at DEBUG level
 
     tracing::info!(
         "Connecting to database with max_connections={}, min_connections={}",
@@ -1149,10 +1183,55 @@ pub async fn establish_connection(settings: &Settings) -> Result<DatabaseConnect
 }
 
 /// Verify database connection by executing a simple query
-pub async fn verify_connection(db: &DatabaseConnection) -> Result<(), DbErr> {
-    use sea_orm::Statement;
-    use sea_orm::ConnectionTrait;
-
+///
+/// **What is `&impl ConnectionTrait`?**
+///
+/// This function uses `&impl ConnectionTrait` instead of the more verbose generic syntax.
+/// Both of these are equivalent:
+///
+/// ```rust
+/// // Concise style (what we use):
+/// pub async fn verify_connection(db: &impl ConnectionTrait) -> Result<(), DbErr>
+///
+/// // Verbose generic style:
+/// pub async fn verify_connection<C: ConnectionTrait>(db: &C) -> Result<(), DbErr>
+/// ```
+///
+/// **What does `impl ConnectionTrait` mean?**
+///
+/// - `impl` = "implements"
+/// - `ConnectionTrait` = SeaORM trait for database connections
+/// - `&impl ConnectionTrait` = "a reference to any type that implements ConnectionTrait"
+///
+/// This means the function accepts:
+/// - `&DatabaseConnection` (connection pool) - Most common
+/// - `&DatabaseTransaction` (for transactions) - When in transaction context
+/// - Test mocks that implement `ConnectionTrait` - For unit testing
+///
+/// **Why is this useful?**
+///
+/// The same function works in different contexts:
+///
+/// ```rust
+/// // Regular usage with connection pool:
+/// let db: DatabaseConnection = establish_connection(&settings).await?;
+/// verify_connection(&db).await?;  // Works!
+///
+/// // Inside a transaction:
+/// let txn = db.begin().await?;
+/// verify_connection(&txn).await?;  // Also works!
+/// txn.commit().await?;
+/// ```
+///
+/// **The Query:**
+///
+/// We use `SELECT 1` which is a simple query that:
+/// - Returns immediately if the database is responsive
+/// - Doesn't access any tables (works even on empty databases)
+/// - Is universally supported across PostgreSQL, MySQL, SQLite
+/// - Verifies both network connectivity and database readiness
+///
+pub async fn verify_connection(db: &impl ConnectionTrait) -> Result<(), DbErr> {
     db.execute(Statement::from_string(
         db.get_database_backend(),
         "SELECT 1".to_owned(),
@@ -1162,6 +1241,16 @@ pub async fn verify_connection(db: &DatabaseConnection) -> Result<(), DbErr> {
     Ok(())
 }
 ```
+
+**Note on Raw SQL Usage:**
+
+In this specific case, we use `Statement::from_string()` with raw SQL because:
+1. This is a simple connectivity check, not application logic
+2. `SELECT 1` is universally understood and has no security implications
+3. It's called once at startup, not in request paths
+4. There's no table schema involved
+
+For all application queries (CRUD operations), we use SeaORM's query builder to avoid raw SQL.
 
 2. **Update `src/utils/mod.rs`**:
 

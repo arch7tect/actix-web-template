@@ -623,10 +623,18 @@ Create a repository layer for tag-specific database operations.
 ```rust
 use crate::entities::{memo_tags, prelude::*, tags};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
-    QueryFilter, Set,
+    sea_query::Expr, ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DbErr,
+    EntityTrait, FromQueryResult, JoinType, QueryFilter, QueryOrder, QuerySelect, RelationTrait,
+    Set,
 };
 use uuid::Uuid;
+
+/// Helper struct for tag count query results
+#[derive(Debug, FromQueryResult)]
+struct TagCount {
+    name: String,
+    count: i64,
+}
 
 pub struct TagRepository;
 
@@ -636,7 +644,7 @@ impl TagRepository {
     /// If the tag exists, returns it. Otherwise, creates a new tag.
     #[tracing::instrument(skip(db))]
     pub async fn get_or_create(
-        db: &DatabaseConnection,
+        db: &impl ConnectionTrait,
         name: String,
     ) -> Result<tags::Model, DbErr> {
         // Try to find existing tag
@@ -664,9 +672,12 @@ impl TagRepository {
     }
 
     /// Assign tags to a memo
+    ///
+    /// Creates tag associations in the memo_tags junction table.
+    /// Tags should already exist (call get_or_create first).
     #[tracing::instrument(skip(db))]
     pub async fn assign_tags_to_memo(
-        db: &DatabaseConnection,
+        db: &impl ConnectionTrait,
         memo_id: Uuid,
         tag_ids: Vec<Uuid>,
     ) -> Result<(), DbErr> {
@@ -685,9 +696,11 @@ impl TagRepository {
     }
 
     /// Remove all tags from a memo
+    ///
+    /// Deletes all entries in memo_tags for the given memo_id.
     #[tracing::instrument(skip(db))]
     pub async fn remove_all_tags_from_memo(
-        db: &DatabaseConnection,
+        db: &impl ConnectionTrait,
         memo_id: Uuid,
     ) -> Result<(), DbErr> {
         MemoTags::delete_many()
@@ -701,9 +714,11 @@ impl TagRepository {
     }
 
     /// Get all tags for a specific memo
+    ///
+    /// Returns tag names as a vector of strings.
     #[tracing::instrument(skip(db))]
     pub async fn get_tags_for_memo(
-        db: &DatabaseConnection,
+        db: &impl ConnectionTrait,
         memo_id: Uuid,
     ) -> Result<Vec<String>, DbErr> {
         let tag_names = MemoTags::find()
@@ -719,44 +734,81 @@ impl TagRepository {
     }
 
     /// Get all tags with usage counts
+    ///
+    /// Returns a list of (tag_name, count) tuples sorted by count descending.
+    ///
+    /// **Understanding this Complex ORM Expression:**
+    ///
+    /// This function builds a SQL query equivalent to:
+    /// ```sql
+    /// SELECT t.name, COUNT(mt.memo_id) as count
+    /// FROM tags t
+    /// LEFT JOIN memo_tags mt ON t.id = mt.tag_id
+    /// GROUP BY t.id, t.name
+    /// ORDER BY count DESC, t.name ASC
+    /// ```
+    ///
+    /// **Breaking down the SeaORM query builder:**
+    ///
+    /// 1. `.select_only()` - Start with an empty SELECT (no default columns)
+    /// 2. `.column(tags::Column::Name)` - Add t.name to SELECT
+    /// 3. `.column_as(Expr::col(...).count(), "count")` - Add COUNT(mt.memo_id) AS count
+    ///    - `Expr::col((MemoTags, memo_tags::Column::MemoId))` - References the joined table's column
+    ///    - `.count()` - Applies COUNT aggregate function
+    ///    - Second param is the alias "count"
+    /// 4. `.join(JoinType::LeftJoin, tags::Relation::MemoTags.def())` - LEFT JOIN memo_tags
+    ///    - Uses the relation defined in the tags entity
+    ///    - `def()` converts relation to join definition
+    /// 5. `.group_by(tags::Column::Id)` and `.group_by(tags::Column::Name)` - GROUP BY clause
+    /// 6. `.order_by_desc(...)` - ORDER BY count DESC
+    ///    - Must use `Expr::col(...).count()` again since we're referencing the computed column
+    /// 7. `.order_by_asc(tags::Column::Name)` - Secondary sort by name ASC
+    /// 8. `.into_model::<TagCount>()` - Convert results into our TagCount struct
+    ///    - SeaORM maps column names to struct fields automatically
+    ///    - Requires `#[derive(FromQueryResult)]` on TagCount
+    ///
+    /// **Why use ORM instead of raw SQL?**
+    /// - **Type safety**: Compiler catches column name typos
+    /// - **Refactoring**: Renaming columns updates all references
+    /// - **Database agnostic**: Same code works with PostgreSQL, MySQL, SQLite
+    /// - **Composable**: Can add filters, pagination dynamically
+    /// - **Injection safe**: Parameters are properly escaped
+    ///
     #[tracing::instrument(skip(db))]
     pub async fn get_all_tags_with_counts(
-        db: &DatabaseConnection,
+        db: &impl ConnectionTrait,
     ) -> Result<Vec<(String, i64)>, DbErr> {
-        use sea_orm::{ConnectionTrait, Statement};
-
-        let query = r#"
-            SELECT t.name, COUNT(mt.memo_id) as count
-            FROM tags t
-            LEFT JOIN memo_tags mt ON t.id = mt.tag_id
-            GROUP BY t.id, t.name
-            ORDER BY count DESC, t.name ASC
-        "#;
-
-        let result = db
-            .query_all(Statement::from_string(
-                sea_orm::DatabaseBackend::Postgres,
-                query,
-            ))
+        let results: Vec<TagCount> = Tags::find()
+            .select_only()
+            .column(tags::Column::Name)
+            .column_as(
+                Expr::col((MemoTags, memo_tags::Column::MemoId)).count(),
+                "count",
+            )
+            .join(JoinType::LeftJoin, tags::Relation::MemoTags.def())
+            .group_by(tags::Column::Id)
+            .group_by(tags::Column::Name)
+            .order_by_desc(Expr::col((MemoTags, memo_tags::Column::MemoId)).count())
+            .order_by_asc(tags::Column::Name)
+            .into_model::<TagCount>()
+            .all(db)
             .await?;
 
-        let tags: Vec<(String, i64)> = result
+        let tags: Vec<(String, i64)> = results
             .into_iter()
-            .map(|row| {
-                let name: String = row.try_get("", "name").unwrap_or_default();
-                let count: i64 = row.try_get("", "count").unwrap_or(0);
-                (name, count)
-            })
+            .map(|tc| (tc.name, tc.count))
             .collect();
 
         Ok(tags)
     }
 
     /// Get tag IDs for a specific memo
-    pub async fn get_tag_ids_for_memo<C>(db: &C, memo_id: Uuid) -> Result<Vec<Uuid>, DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    ///
+    /// Returns tag IDs as a vector of UUIDs.
+    pub async fn get_tag_ids_for_memo(
+        db: &impl ConnectionTrait,
+        memo_id: Uuid,
+    ) -> Result<Vec<Uuid>, DbErr> {
         let tag_ids = MemoTags::find()
             .filter(memo_tags::Column::MemoId.eq(memo_id))
             .all(db)
@@ -769,10 +821,12 @@ impl TagRepository {
     }
 
     /// Count how many memos are using a specific tag
-    pub async fn count_memos_with_tag<C>(db: &C, tag_id: Uuid) -> Result<u64, DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    ///
+    /// Returns the count of memos associated with this tag.
+    pub async fn count_memos_with_tag(
+        db: &impl ConnectionTrait,
+        tag_id: Uuid,
+    ) -> Result<u64, DbErr> {
         let count = MemoTags::find()
             .filter(memo_tags::Column::TagId.eq(tag_id))
             .count(db)
@@ -782,10 +836,12 @@ impl TagRepository {
     }
 
     /// Delete a specific tag by ID
-    pub async fn delete_tag<C>(db: &C, tag_id: Uuid) -> Result<(), DbErr>
-    where
-        C: ConnectionTrait,
-    {
+    ///
+    /// Deletes the tag from the database.
+    pub async fn delete_tag(
+        db: &impl ConnectionTrait,
+        tag_id: Uuid,
+    ) -> Result<(), DbErr> {
         tags::Entity::delete_by_id(tag_id).exec(db).await?;
 
         tracing::debug!(tag_id = %tag_id, "Deleted tag");
@@ -794,6 +850,10 @@ impl TagRepository {
     }
 }
 ```
+
+**Note on `impl ConnectionTrait`:**
+
+All functions in this repository use `db: &impl ConnectionTrait` instead of the verbose generic pattern. This allows the functions to work with both connection pools and transactions. For a detailed explanation of `impl Trait` syntax, see the **"Understanding `impl ConnectionTrait`"** section in [Chapter 2: Database Integration](chapter-02.md#step-7-create-database-connection-helper).
 
 **Update `src/repository/mod.rs`:**
 
