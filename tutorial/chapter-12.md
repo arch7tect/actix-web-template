@@ -901,9 +901,10 @@ cargo run
    - Button hover effects and colors visible
 
 4. **Test without JavaScript** (disable in browser dev tools):
-   - New memo button won't work (needs JS)
-   - Direct navigation to `/web/memos/new` shows form
-   - Form submit causes page reload (baseline experience)
+   - Application won't work (JavaScript is required)
+   - New memo button won't respond
+   - Form submissions won't work (default action is prevented by JS)
+   - This confirms the SPA architecture using vanilla JavaScript
 
 5. **Test filters**:
    - Change "All Memos" to "Incomplete"

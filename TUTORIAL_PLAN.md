@@ -748,13 +748,13 @@ The tutorial is divided into 18 chapters, progressively building a complete appl
 ---
 
 #### Chapter 12: Web Page Handlers - Building the UI
-**What you'll build**: Server-rendered web pages with progressive enhancement
+**What you'll build**: Server-rendered web pages with JavaScript-based interactivity
 
 **Key concepts**:
 - Server-side rendering patterns
 - HTML form handling
-- Progressive enhancement with vanilla JS
-- Client-side interactivity without framework
+- JavaScript-required SPA approach with vanilla JS
+- Client-side interactivity without framework (fetch API, DOM manipulation)
 - Form data extraction and validation
 
 **Technical focus**:
