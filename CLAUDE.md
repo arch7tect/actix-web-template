@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a production-ready Actix Web application for managing memos. Built with Rust, featuring a layered architecture, comprehensive testing, security features, and performance optimizations.
+**This is a tutorial project.** The primary purpose of this repository is to serve as a comprehensive, step-by-step tutorial for building a production-ready web application with Rust and Actix Web. The memo management application is the learning vehicle — each chapter (0-23) introduces new concepts incrementally, from project setup through Kubernetes deployment.
 
-**Status**: Stage 18 Complete - Full-featured memo management application with REST API, web UI, documentation, tests, and Docker deployment.
+The tutorial lives in `tutorial/` (24 chapters) and the codebase serves as both the working reference implementation and hands-on exercise material.
+
+**Status**: Chapter 20 Complete - Application hardened for multi-replica deployment (proxy-aware rate limiting, migration separation, graceful shutdown, configurable security headers and pool settings). Chapters 21-23 (Kubernetes manifests, Helm) planned.
 
 ## Tech Stack
 
@@ -172,6 +174,25 @@ actix-web-template/
 ├── docker-compose.yml       # Docker Compose configuration
 ├── Dockerfile               # Multi-stage Docker build
 ├── .dockerignore
+├── k8s/                     # Kubernetes manifests (chapter 21-22)
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── secret.yaml.example
+│   ├── postgres/            # PostgreSQL StatefulSet, Service, PVC
+│   ├── app/                 # App Deployment, Service, HPA, PDB
+│   ├── ingress.yaml
+│   ├── migration-job.yaml
+│   └── deploy-local.sh
+├── charts/memos/            # Helm chart (chapter 23)
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   ├── values-prod.yaml
+│   └── templates/
+├── tutorial/                # Step-by-step tutorial (24 chapters)
+│   ├── README.md            # Tutorial overview and structure
+│   ├── chapter-00..19.md    # Chapters 0-19
+│   ├── chapter-20..23.md    # Chapters 20-23 (Kubernetes)
+│   └── k8s-chapters-plan.md # Planning document for k8s chapters
 ├── CLAUDE.md                # This file
 ├── LICENSE                  # MIT License
 ├── MIGRATIONS.md            # Migration history
@@ -627,32 +648,34 @@ cargo install cargo-udeps
 cargo +nightly udeps
 ```
 
-## Stage Completion Status
+## Tutorial Chapter / Stage Completion Status
 
-- [x] Stage 0: Project Setup & Infrastructure
-- [x] Stage 1: Core Application & Configuration
-- [x] Stage 2: Database Setup & ORM Integration
-- [x] Stage 3: Error Handling & Middleware
-- [x] Stage 4: Health Check & Monitoring
-- [x] Stage 5: DTOs & Validation
-- [x] Stage 6: Repository Layer
-- [x] Stage 7: Service Layer
-- [x] Stage 8: REST API Handlers
-- [x] Stage 9: OpenAPI Documentation
-- [x] Stage 10: Askama Templates Setup
-- [x] Stage 11: Web Page Handlers (HTML)
-- [x] Stage 12: Vanilla JavaScript Integration (skipped - integrated in Stage 11)
-- [x] Stage 13: Static Assets & Styling
-- [x] Stage 14: Docker & Deployment
-- [x] Stage 15: Security Enhancements
-- [x] Stage 16: Testing & Quality Assurance
-- [x] Stage 17: Performance Optimization
-- [x] Stage 18: Documentation & Finalization
+Each stage corresponds to a tutorial chapter in `tutorial/`.
 
-## Next Steps (Optional Stages)
-
-- [ ] Stage 19: CI/CD Pipeline (GitHub Actions)
-- [ ] Stage 20: Observability Stack (Jaeger, Prometheus, Grafana)
+- [x] Chapter 0: Prerequisites and Environment Setup
+- [x] Chapter 1: Core Application Setup
+- [x] Chapter 2: Database Integration with SeaORM
+- [x] Chapter 3: Error Handling and Middleware
+- [x] Chapter 4: Enhanced Health Checks and Readiness Probes
+- [x] Chapter 5: Data Transfer Objects and Validation
+- [x] Chapter 6: Repository Layer - Database Operations
+- [x] Chapter 7: Service Layer - Business Logic and Transactions
+- [x] Chapter 8: REST API Handlers
+- [x] Chapter 9: OpenAPI Documentation
+- [x] Chapter 10: Askama Templates - Server-Side Rendering
+- [x] Chapter 11: Static Assets and Styling
+- [x] Chapter 12: Web Page Handlers - Building the UI
+- [x] Chapter 13: Security Enhancements
+- [x] Chapter 14: Testing Strategy
+- [x] Chapter 15: Docker Deployment
+- [x] Chapter 16: CI/CD Pipeline (GitHub Actions)
+- [x] Chapter 17: Observability Stack (Jaeger, Prometheus, Grafana)
+- [x] Chapter 18: Adding Tags and Advanced Filtering
+- [x] Chapter 19: Tags Feature - Web UI and User Experience
+- [x] Chapter 20: Kubernetes Readiness - Preparing for Multi-Replica Deployment
+- [ ] Chapter 21: First Kubernetes Deployment on minikube
+- [ ] Chapter 22: Ingress, Horizontal Scaling, and Production Patterns
+- [ ] Chapter 23: Helm Chart - Parameterized Packaging
 
 ## Resources
 

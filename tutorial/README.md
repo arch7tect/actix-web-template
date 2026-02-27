@@ -13,6 +13,7 @@ A complete memo management application featuring:
 - **Docker** deployment
 - **CI/CD** pipeline with GitHub Actions
 - **Observability** with Jaeger, Prometheus, and Grafana
+- **Kubernetes** deployment with Helm charts
 
 ## Prerequisites
 
@@ -22,7 +23,7 @@ A complete memo management application featuring:
 
 ## Tutorial Structure
 
-The tutorial currently ships with nineteen chapters (0-18) that guide you from environment setup through a complete production-ready application with observability and advanced features. Each chapter builds on previous concepts and should be completed sequentially.
+The tutorial ships with twenty-four chapters (0-23) that guide you from environment setup through a complete production-ready application deployed on Kubernetes. Each chapter builds on previous concepts and should be completed sequentially.
 
 ### Part 1: Foundation (Chapters 0-4)
 
@@ -60,9 +61,19 @@ The tutorial currently ships with nineteen chapters (0-18) that guide you from e
 - **[Chapter 16: CI/CD Pipeline](chapter-16.md)** - Automate testing, linting, and releases with GitHub Actions
 - **[Chapter 17: Observability Stack](chapter-17.md)** - Add distributed tracing, metrics, and log aggregation
 
-### Part 7: Advanced Features (Chapter 18)
+### Part 7: Advanced Features (Chapters 18-19)
 
 - **[Chapter 18: Adding Tags and Advanced Filtering](chapter-18.md)** - Implement many-to-many relationships, tag management, and advanced query filtering
+- **[Chapter 19: Tags Feature - Web UI and User Experience](chapter-19.md)** - Build the tag management UI with server-side rendering
+
+### Part 8: Kubernetes Deployment (Chapters 20-23)
+
+- **[Chapter 20: Kubernetes Readiness](chapter-20.md)** - Prepare the application for multi-replica deployment (rate limiting, graceful shutdown, migration separation)
+- **[Chapter 21: First Kubernetes Deployment on minikube](chapter-21.md)** - Deploy to Kubernetes with StatefulSet, Jobs, and health probes
+- **[Chapter 22: Ingress, Horizontal Scaling, and Production Patterns](chapter-22.md)** - Add Ingress, HPA, PDB, NetworkPolicy, and CI/CD integration
+- **[Chapter 23: Helm Chart — Parameterized Packaging](chapter-23.md)** - Package the deployment as a reusable Helm chart
+
+> **Starting mid-series?** Chapters 20-23 build on the completed application from chapters 0-19. Check out the `pre-k8s` tag to get the starting point: `git checkout pre-k8s`
 
 ## How to Use This Tutorial
 
@@ -82,8 +93,9 @@ The tutorial currently ships with nineteen chapters (0-18) that guide you from e
 - **Deployment & CI/CD**: 2-3 hours
 - **Observability**: 1-2 hours
 - **Advanced Features**: 2-3 hours
+- **Kubernetes Deployment**: 8-12 hours
 
-**Total**: 16-24 hours depending on experience level
+**Total**: 24-36 hours depending on experience level
 
 ## Getting Help
 

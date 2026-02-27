@@ -4,7 +4,20 @@ use actix_web::http::header::HeaderValue;
 use std::future::{Ready, ready};
 use std::pin::Pin;
 
-pub struct SecurityHeaders;
+pub struct SecurityHeaders {
+    hsts_enabled: bool,
+    frame_options: HeaderValue,
+}
+
+impl SecurityHeaders {
+    pub fn new(hsts_enabled: bool, frame_options: &str) -> Self {
+        Self {
+            hsts_enabled,
+            frame_options: HeaderValue::from_str(frame_options)
+                .unwrap_or_else(|_| HeaderValue::from_static("DENY")),
+        }
+    }
+}
 
 impl<S, B> Transform<S, ServiceRequest> for SecurityHeaders
 where
@@ -19,12 +32,18 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(SecurityHeadersMiddleware { service }))
+        ready(Ok(SecurityHeadersMiddleware {
+            service,
+            hsts_enabled: self.hsts_enabled,
+            frame_options: self.frame_options.clone(),
+        }))
     }
 }
 
 pub struct SecurityHeadersMiddleware<S> {
     service: S,
+    hsts_enabled: bool,
+    frame_options: HeaderValue,
 }
 
 impl<S, B> Service<ServiceRequest> for SecurityHeadersMiddleware<S>
@@ -41,6 +60,8 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let fut = self.service.call(req);
+        let hsts_enabled = self.hsts_enabled;
+        let frame_options = self.frame_options.clone();
 
         Box::pin(async move {
             let mut res = fut.await?;
@@ -52,16 +73,18 @@ where
             );
             headers.insert(
                 actix_web::http::header::HeaderName::from_static("x-frame-options"),
-                HeaderValue::from_static("DENY"),
+                frame_options,
             );
             headers.insert(
                 actix_web::http::header::HeaderName::from_static("x-xss-protection"),
                 HeaderValue::from_static("1; mode=block"),
             );
-            headers.insert(
-                actix_web::http::header::HeaderName::from_static("strict-transport-security"),
-                HeaderValue::from_static("max-age=31536000; includeSubDomains"),
-            );
+            if hsts_enabled {
+                headers.insert(
+                    actix_web::http::header::HeaderName::from_static("strict-transport-security"),
+                    HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+                );
+            }
             headers.insert(
                 actix_web::http::header::HeaderName::from_static("referrer-policy"),
                 HeaderValue::from_static("strict-origin-when-cross-origin"),

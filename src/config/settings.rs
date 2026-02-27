@@ -9,12 +9,14 @@ pub struct Settings {
     pub api: ApiConfig,
     pub app: AppConfig,
     pub logging: LoggingConfig,
+    pub security: SecurityConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
+    pub trust_proxy: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -22,6 +24,9 @@ pub struct DatabaseConfig {
     pub url: String,
     pub max_connections: u32,
     pub connect_timeout: u64,
+    pub min_connections: u32,
+    pub idle_timeout: u64,
+    pub max_lifetime: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -55,6 +60,12 @@ pub struct LoggingConfig {
     pub format: LogFormat,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct SecurityConfig {
+    pub hsts_enabled: bool,
+    pub frame_options: String,
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
@@ -81,6 +92,10 @@ impl Settings {
             port: env::var("SERVER_PORT")
                 .unwrap_or_else(|_| "3737".to_string())
                 .parse()?,
+            trust_proxy: env::var("TRUST_PROXY")
+                .unwrap_or_else(|_| "false".to_string())
+                .parse()
+                .unwrap_or(false),
         };
 
         let database = DatabaseConfig {
@@ -91,6 +106,15 @@ impl Settings {
                 .parse()?,
             connect_timeout: env::var("DATABASE_CONNECT_TIMEOUT")
                 .unwrap_or_else(|_| "30".to_string())
+                .parse()?,
+            min_connections: env::var("DATABASE_MIN_CONNECTIONS")
+                .unwrap_or_else(|_| "2".to_string())
+                .parse()?,
+            idle_timeout: env::var("DATABASE_IDLE_TIMEOUT")
+                .unwrap_or_else(|_| "300".to_string())
+                .parse()?,
+            max_lifetime: env::var("DATABASE_MAX_LIFETIME")
+                .unwrap_or_else(|_| "1800".to_string())
                 .parse()?,
         };
 
@@ -136,6 +160,14 @@ impl Settings {
             },
         };
 
+        let security = SecurityConfig {
+            hsts_enabled: env::var("HSTS_ENABLED")
+                .unwrap_or_else(|_| "false".to_string())
+                .parse()
+                .unwrap_or(false),
+            frame_options: env::var("FRAME_OPTIONS").unwrap_or_else(|_| "DENY".to_string()),
+        };
+
         tracing::info!("Configuration loaded successfully");
         tracing::debug!(?app.env, ?logging.format, "Application configuration");
 
@@ -146,6 +178,7 @@ impl Settings {
             api,
             app,
             logging,
+            security,
         })
     }
 

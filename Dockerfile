@@ -45,13 +45,4 @@ EXPOSE 3737
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3737/health || exit 1
 
-# Create startup script to run migrations then start app
-RUN echo '#!/bin/sh\n\
-echo "Running database migrations..."\n\
-./migration\n\
-echo "Starting application..."\n\
-exec ./actix-web-template' > /app/entrypoint.sh && \
-    chmod +x /app/entrypoint.sh
-
-# Run the startup script
-CMD ["/app/entrypoint.sh"]
+CMD ["./actix-web-template"]
