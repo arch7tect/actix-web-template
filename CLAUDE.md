@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The tutorial lives in `tutorial/` (24 chapters) and the codebase serves as both the working reference implementation and hands-on exercise material.
 
-**Status**: Chapter 20 Complete - Application hardened for multi-replica deployment (proxy-aware rate limiting, migration separation, graceful shutdown, configurable security headers and pool settings). Chapters 21-23 (Kubernetes manifests, Helm) planned.
+**Status**: Chapter 21 Complete - First Kubernetes deployment on minikube (namespace, configmap, secret, PostgreSQL StatefulSet, migration Job, app Deployment with health probes, NodePort Service, deploy script). Chapters 22-23 (Ingress, HPA, Helm) planned.
 
 ## Tech Stack
 
@@ -673,7 +673,7 @@ Each stage corresponds to a tutorial chapter in `tutorial/`.
 - [x] Chapter 18: Adding Tags and Advanced Filtering
 - [x] Chapter 19: Tags Feature - Web UI and User Experience
 - [x] Chapter 20: Kubernetes Readiness - Preparing for Multi-Replica Deployment
-- [ ] Chapter 21: First Kubernetes Deployment on minikube
+- [x] Chapter 21: First Kubernetes Deployment on minikube
 - [ ] Chapter 22: Ingress, Horizontal Scaling, and Production Patterns
 - [ ] Chapter 23: Helm Chart - Parameterized Packaging
 

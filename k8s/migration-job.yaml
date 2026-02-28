@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migration
+  namespace: memos
+  labels:
+    app: migration
+    app.kubernetes.io/part-of: memos
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: migration
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migration
+          image: memos-app:latest
+          imagePullPolicy: Never
+          command: ["./migration"]
+          envFrom:
+            - configMapRef:
+                name: memos-config
+            - secretRef:
+                name: memos-secret
